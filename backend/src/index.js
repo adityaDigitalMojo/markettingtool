@@ -14,7 +14,11 @@ const MetaAdsService = require('./meta_service');
 const clientController = require('./controllers/clientController');
 
 const app = express();
-app.use(cors());
+app.use(cors({
+    origin: ['https://markettingtool.vercel.app', 'http://localhost:5173'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-client-id']
+}));
 app.use(express.json());
 
 // Middleware to inject client-specific services
