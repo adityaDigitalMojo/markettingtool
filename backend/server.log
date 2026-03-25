@@ -1,0 +1,87 @@
+nohup: ignoring input
+[dotenv@17.3.1] injecting env (8) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+✅ Firebase Admin SDK Initialized
+(node:290263) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Backend running at http://localhost:8000
+Error fetching campaigns: GaxiosError: invalid_client
+    at Gaxios._request (/home/aditya/Desktop/DM-Work/markettingtool/backend/node_modules/gaxios/build/src/gaxios.js:142:23)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async OAuth2Client.refreshTokenNoCache (/home/aditya/Desktop/DM-Work/markettingtool/backend/node_modules/google-auth-library/build/src/auth/oauth2client.js:212:19)
+    at async OAuth2Client.refreshAccessTokenAsync (/home/aditya/Desktop/DM-Work/markettingtool/backend/node_modules/google-auth-library/build/src/auth/oauth2client.js:247:19)
+    at async OAuth2Client.getAccessTokenAsync (/home/aditya/Desktop/DM-Work/markettingtool/backend/node_modules/google-auth-library/build/src/auth/oauth2client.js:276:23)
+    at async Customer.getAccessToken (/home/aditya/Desktop/DM-Work/markettingtool/backend/node_modules/google-ads-api/build/src/service.js:76:27)
+    at async Customer.useStreamToImitateRegularSearch (/home/aditya/Desktop/DM-Work/markettingtool/backend/node_modules/google-ads-api/build/src/customer.js:194:29)
+    at async Customer.paginatedSearch (/home/aditya/Desktop/DM-Work/markettingtool/backend/node_modules/google-ads-api/build/src/customer.js:157:34)
+    at async Customer.querier (/home/aditya/Desktop/DM-Work/markettingtool/backend/node_modules/google-ads-api/build/src/customer.js:268:53)
+    at async Customer.report (/home/aditya/Desktop/DM-Work/markettingtool/backend/node_modules/google-ads-api/build/src/customer.js:50:30) {
+  config: {
+    retry: true,
+    retryConfig: {
+      httpMethodsToRetry: [Array],
+      currentRetryAttempt: 0,
+      retry: 3,
+      noResponseRetries: 2,
+      retryDelayMultiplier: 2,
+      timeOfFirstRequest: 1774475611420,
+      totalTimeout: 9007199254740991,
+      maxRetryDelay: 9007199254740991,
+      statusCodesToRetry: [Array]
+    },
+    method: 'POST',
+    url: 'https://oauth2.googleapis.com/token',
+    data: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent': 'google-api-nodejs-client/9.15.1',
+      'x-goog-api-client': 'gl-node/22.13.0'
+    },
+    paramsSerializer: [Function: paramsSerializer],
+    body: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+    validateStatus: [Function: validateStatus],
+    responseType: 'unknown',
+    errorRedactor: [Function: defaultErrorRedactor]
+  },
+  response: {
+    config: {
+      retry: true,
+      retryConfig: [Object],
+      method: 'POST',
+      url: 'https://oauth2.googleapis.com/token',
+      data: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+      headers: [Object],
+      paramsSerializer: [Function: paramsSerializer],
+      body: '<<REDACTED> - See `errorRedactor` option in `gaxios` for configuration>.',
+      validateStatus: [Function: validateStatus],
+      responseType: 'unknown',
+      errorRedactor: [Function: defaultErrorRedactor]
+    },
+    data: {
+      error: 'invalid_client',
+      error_description: 'The OAuth client was not found.'
+    },
+    headers: {
+      'alt-svc': 'h3=":443"; ma=2592000,h3-29=":443"; ma=2592000',
+      'cache-control': 'no-cache, no-store, max-age=0, must-revalidate',
+      'content-encoding': 'gzip',
+      'content-type': 'application/json; charset=utf-8',
+      date: 'Wed, 25 Mar 2026 21:53:31 GMT',
+      expires: 'Mon, 01 Jan 1990 00:00:00 GMT',
+      pragma: 'no-cache',
+      server: 'scaffolding on HTTPServer2',
+      'transfer-encoding': 'chunked',
+      vary: 'Origin, X-Origin, Referer',
+      'x-content-type-options': 'nosniff',
+      'x-frame-options': 'SAMEORIGIN',
+      'x-xss-protection': '0'
+    },
+    status: 401,
+    statusText: 'Unauthorized',
+    request: { responseURL: 'https://oauth2.googleapis.com/token' }
+  },
+  error: undefined,
+  status: 401,
+  [Symbol(gaxios-gaxios-error)]: '6.7.1'
+}
+[Dashboard] Fetched 0 live campaigns for LAST_30_DAYS
+[Dashboard] Total Leads: 0, Total Spend: 0
