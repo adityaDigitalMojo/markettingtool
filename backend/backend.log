@@ -1,0 +1,171 @@
+
+> backend@1.0.0 start
+> node src/index.js
+
+[dotenv@17.3.1] injecting env (8) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+✅ Google Ads API Client Initialized.
+✅ Meta Ads Service Initialized for act_391022327028566
+(node:177592) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Backend running at http://localhost:8000
+Error fetching historical metrics: fp {
+  errors: [
+    {
+      error_code: [Object],
+      message: "Expects filters on the following field to limit a finite date range: 'segments.date'"
+    }
+  ],
+  '@type': 'type.googleapis.com/google.ads.googleads.v23.errors.GoogleAdsFailure',
+  request_id: '4RwIPoVLAXE9UAQ-VXUfGw'
+}
+Error fetching historical metrics: fp {
+  errors: [
+    {
+      error_code: [Object],
+      message: "Expects filters on the following field to limit a finite date range: 'segments.date'"
+    }
+  ],
+  '@type': 'type.googleapis.com/google.ads.googleads.v23.errors.GoogleAdsFailure',
+  request_id: '_SMDmBvCdUxcB6Z5wL22kA'
+}
+[GoogleAds] Fetched 34 campaigns for range LAST_30_DAYS
+[GoogleAds] Fetched 34 campaigns for range LAST_30_DAYS
+[GoogleAds] Fetched 34 campaigns for range LAST_30_DAYS
+[GoogleAds] Fetched 34 campaigns for range LAST_30_DAYS
+[GoogleAds] Fetched 34 campaigns for range LAST_30_DAYS
+[GoogleAds] Fetched 34 campaigns for range LAST_30_DAYS
+Error fetching historical metrics: fp {
+  errors: [
+    {
+      error_code: [Object],
+      message: "Expects filters on the following field to limit a finite date range: 'segments.date'"
+    }
+  ],
+  '@type': 'type.googleapis.com/google.ads.googleads.v23.errors.GoogleAdsFailure',
+  request_id: '3o5TCj6uzeGGIVSeNb8jgQ'
+}
+[GoogleAds] Fetched 34 campaigns for range LAST_7_DAYS
+[GoogleAds] Fetched 34 campaigns for range LAST_7_DAYS
+[GoogleAds] Fetched 34 campaigns for range LAST_7_DAYS
+[GoogleAds] Fetched 34 campaigns for range LAST_7_DAYS
+[GoogleAds] Fetched 34 campaigns for range LAST_7_DAYS
+[GoogleAds] Fetched 34 campaigns for range LAST_7_DAYS
+Error fetching historical metrics: fp {
+  errors: [
+    {
+      error_code: [Object],
+      message: "Expects filters on the following field to limit a finite date range: 'segments.date'"
+    }
+  ],
+  '@type': 'type.googleapis.com/google.ads.googleads.v23.errors.GoogleAdsFailure',
+  request_id: '-aIjPWKtWoCpE_Xd__avqw'
+}
+Error fetching historical metrics: fp {
+  errors: [
+    {
+      error_code: [Object],
+      message: "Expects filters on the following field to limit a finite date range: 'segments.date'"
+    }
+  ],
+  '@type': 'type.googleapis.com/google.ads.googleads.v23.errors.GoogleAdsFailure',
+  request_id: 'mEDWvOUuxB1y1toghbWbkw'
+}
+Error fetching historical metrics: fp {
+  errors: [
+    {
+      error_code: [Object],
+      message: "Expects filters on the following field to limit a finite date range: 'segments.date'"
+    }
+  ],
+  '@type': 'type.googleapis.com/google.ads.googleads.v23.errors.GoogleAdsFailure',
+  request_id: 'vmklVIVWazFVyTiOXyp1DQ'
+}
+[GoogleAds] Fetched 34 campaigns for range LAST_30_DAYS
+[GoogleAds] Fetched 34 campaigns for range LAST_30_DAYS
+[GoogleAds] Fetched 34 campaigns for range LAST_30_DAYS
+Error fetching historical metrics: fp {
+  errors: [
+    {
+      error_code: [Object],
+      message: "Expects filters on the following field to limit a finite date range: 'segments.date'"
+    }
+  ],
+  '@type': 'type.googleapis.com/google.ads.googleads.v23.errors.GoogleAdsFailure',
+  request_id: 'YMOFGEk2_fsOyV8IR0oSdg'
+}
+[GoogleAds] Fetched 34 campaigns for range ALL_TIME
+[GoogleAds] Fetched 34 campaigns for range ALL_TIME
+[GoogleAds] Fetched 34 campaigns for range ALL_TIME
+Error fetching historical metrics: fp {
+  errors: [
+    {
+      error_code: [Object],
+      message: "Expects filters on the following field to limit a finite date range: 'segments.date'"
+    }
+  ],
+  '@type': 'type.googleapis.com/google.ads.googleads.v23.errors.GoogleAdsFailure',
+  request_id: '0b4IuIkTJiHATUvzx2kWlA'
+}
+[GoogleAds] Fetched 34 campaigns for range LAST_30_DAYS
+[GoogleAds] Fetched 34 campaigns for range LAST_30_DAYS
+[GoogleAds] Fetched 34 campaigns for range LAST_30_DAYS
+Error fetching historical metrics: fp {
+  errors: [
+    {
+      error_code: [Object],
+      message: "Expects filters on the following field to limit a finite date range: 'segments.date'"
+    }
+  ],
+  '@type': 'type.googleapis.com/google.ads.googleads.v23.errors.GoogleAdsFailure',
+  request_id: 'GC9o0H45wMJAzTDlbW54Fg'
+}
+[GoogleAds] Fetched 34 campaigns for range ALL_TIME
+[GoogleAds] Fetched 34 campaigns for range ALL_TIME
+[GoogleAds] Fetched 34 campaigns for range ALL_TIME
+[GoogleAds] Fetched 34 campaigns for range LAST_30_DAYS
+[GoogleAds] Fetched 34 campaigns for range LAST_30_DAYS
+[GoogleAds] Fetched 34 campaigns for range LAST_30_DAYS
+[GoogleAds] Fetched 34 campaigns for range LAST_7_DAYS
+[GoogleAds] Fetched 34 campaigns for range LAST_7_DAYS
+[GoogleAds] Fetched 34 campaigns for range LAST_7_DAYS
+Error fetching historical metrics: fp {
+  errors: [
+    {
+      error_code: [Object],
+      message: "Expects filters on the following field to limit a finite date range: 'segments.date'"
+    }
+  ],
+  '@type': 'type.googleapis.com/google.ads.googleads.v23.errors.GoogleAdsFailure',
+  request_id: 'mYyedO5UrWvAEP5vYIubaw'
+}
+Error fetching historical metrics: fp {
+  errors: [
+    {
+      error_code: [Object],
+      message: "Expects filters on the following field to limit a finite date range: 'segments.date'"
+    }
+  ],
+  '@type': 'type.googleapis.com/google.ads.googleads.v23.errors.GoogleAdsFailure',
+  request_id: 'IbaAPKwYKTwtFZtqsJL2hw'
+}
+Error fetching historical metrics: fp {
+  errors: [
+    {
+      error_code: [Object],
+      message: "Expects filters on the following field to limit a finite date range: 'segments.date'"
+    }
+  ],
+  '@type': 'type.googleapis.com/google.ads.googleads.v23.errors.GoogleAdsFailure',
+  request_id: 'fQnho3Wr4mObwdr9A4oUeg'
+}
+Error fetching historical metrics: fp {
+  errors: [
+    {
+      error_code: [Object],
+      message: "Expects filters on the following field to limit a finite date range: 'segments.date'"
+    }
+  ],
+  '@type': 'type.googleapis.com/google.ads.googleads.v23.errors.GoogleAdsFailure',
+  request_id: 'E-KcPOj9ucysERK88LMuqA'
+}

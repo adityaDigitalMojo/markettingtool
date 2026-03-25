@@ -1,0 +1,23 @@
+{
+  "amara": {
+    "name": "Amara",
+    "location": "Hyderabad",
+    "meta": {
+      "appId": "1664614274087128",
+      "appSecret": "",
+      "accessToken": "EAAGjnMBUZBkEBRDWAC3gUHwDzYPB3HUlRARAkC5fbJgXG0IF2370hDMIYp97SaEb7RKk8dFYemqboB9DAmcH3PZCG8NNNej2ZCdO295AUnmzFlfn4qLkaHLZBwob7ZC1ZAaypyf8PGgFwv0D1aZCl48yZCUCNTX0WAgggdO09q5TSg4V22lBrelKYBSbzsqYnFIJhAZDZD",
+      "adAccountId": "act_391022327028566"
+    },
+    "google": {
+      "developerToken": "<YOUR_DEVELOPER_TOKEN>",
+      "customerId": "<YOUR_CUSTOMER_ID>",
+      "clientId": "<YOUR_CLIENT_ID>",
+      "clientSecret": "<YOUR_CLIENT_SECRET>",
+      "refreshToken": "<YOUR_REFRESH_TOKEN>"
+    },
+    "dataPaths": {
+      "Meta": "data/amara_meta.csv",
+      "Google": "data/amara_google.csv"
+    }
+  }
+}
