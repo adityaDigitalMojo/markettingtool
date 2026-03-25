@@ -4,9 +4,12 @@ class GoogleAdsService {
     constructor(credentials) {
         this.client = null;
         this.customer = null;
-        this.customer_id = credentials.customerId;
 
-        if (!credentials.clientId || !credentials.clientSecret || !credentials.refreshToken) {
+        // Sanitize customer IDs by removing dashes
+        this.customer_id = credentials.customerId ? credentials.customerId.toString().replace(/-/g, '') : null;
+        const login_customer_id = credentials.loginCustomerId ? credentials.loginCustomerId.toString().replace(/-/g, '') : null;
+
+        if (!credentials.clientId || !credentials.clientSecret || !credentials.refreshToken || !this.customer_id) {
             console.warn("⚠️ Google Ads API credentials incomplete for client.");
             return;
         }
@@ -18,8 +21,8 @@ class GoogleAdsService {
                 developer_token: credentials.developerToken,
             });
             this.customer = this.client.Customer({
-                customer_id: credentials.customerId,
-                login_customer_id: credentials.loginCustomerId,
+                customer_id: this.customer_id,
+                login_customer_id: login_customer_id,
                 refresh_token: credentials.refreshToken,
             });
         } catch (err) {

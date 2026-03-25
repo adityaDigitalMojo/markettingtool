@@ -1,0 +1,8 @@
+nohup: ignoring input
+[dotenv@17.3.1] injecting env (8) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+✅ Firebase Admin SDK Initialized
+(node:295127) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Backend running at http://localhost:8000
+[Dashboard] Fetched 34 live campaigns for LAST_30_DAYS
+[Dashboard] Total Leads: 9814, Total Spend: 9250063.009999996

@@ -1,0 +1,18 @@
+nohup: ignoring input
+[dotenv@17.3.1] injecting env (8) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+✅ Firebase Admin SDK Initialized
+(node:294761) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Backend running at http://localhost:8000
+Error fetching campaigns: fp {
+  errors: [
+    {
+      error_code: [Object],
+      message: "Invalid customer ID '312-081-3693'."
+    }
+  ],
+  '@type': 'type.googleapis.com/google.ads.googleads.v23.errors.GoogleAdsFailure',
+  request_id: 'ofE-VsE9dY9nT8TARErklw'
+}
+[Dashboard] Fetched 0 live campaigns for LAST_30_DAYS
+[Dashboard] Total Leads: 0, Total Spend: 0
