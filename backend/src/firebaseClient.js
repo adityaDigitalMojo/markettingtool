@@ -9,12 +9,15 @@ try {
         serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
     } else {
         // Local development: look for serviceAccountKey.json in the backend root
-        serviceAccount = require(path.join(__dirname, '../serviceAccountKey.json'));
+        const keyPath = path.join(__dirname, '../serviceAccountKey.json');
+        serviceAccount = require(keyPath);
     }
 
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-    });
+    if (!admin.apps.length) {
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+        });
+    }
     console.log("✅ Firebase Admin SDK Initialized");
 } catch (error) {
     console.error("❌ Firebase Initialization Error:", error.message);
