@@ -175,23 +175,27 @@ class MetaAdsService {
                 let recommendation = null;
                 if (cRanking === 'BELOW_AVERAGE') {
                     recommendation = {
-                        type: 'CONV_RATE', action: 'Fix Landing Page / Offer', status: 'CRITICAL',
+                        type: 'CONV_RATE', action: 'Fix Landing Page', status: 'CRITICAL',
                         reason: "Your conversion rate ranking is below average. Users click but don't convert.",
-                        steps: ["Ensure landing page message matches ad", "Add strong CTA", "Reduce form fields"]
+                        steps: ["Ensure landing page message matches ad", "Add strong CTA", "Reduce form fields"],
+                        isActionable: false
                     };
                 } else if (qRanking === 'BELOW_AVERAGE') {
                     recommendation = {
-                        type: 'QUALITY', action: 'Improve Creative Quality', status: 'CRITICAL',
+                        type: 'QUALITY', action: 'Improve Creative', status: 'CRITICAL',
                         reason: "Your ad quality ranking is below average.",
-                        steps: ["Replace with high-res creative", "Avoid excessive text", "Use authentic photos"]
+                        steps: ["Replace with high-res creative", "Avoid excessive text", "Use authentic photos"],
+                        isActionable: false
                     };
                 } else if (eRanking === 'BELOW_AVERAGE') {
                     recommendation = {
-                        type: 'ENGAGEMENT', action: 'Improve Hook / Copy', status: 'IMPROVE',
+                        type: 'ENGAGEMENT', action: 'Improve Hook', status: 'IMPROVE',
                         reason: "Your engagement rate ranking is below average.",
-                        steps: ["Strong visual hook", "Ask direct question", "Use social proof"]
+                        steps: ["Strong visual hook", "Ask direct question", "Use social proof"],
+                        isActionable: false
                     };
                 }
+
 
                 return {
                     id: ad.id, name: ad.name, status: ad.status,

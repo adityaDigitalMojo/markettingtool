@@ -79,6 +79,7 @@ class GoogleAdsService {
     async fetchCampaigns(range = 'LAST_30_DAYS') {
         if (!this.customer) return [];
         try {
+            console.log(`[GoogleAdsService] Fetching campaigns for range: ${range}`);
             const campaigns = await this.customer.report({
                 entity: 'campaign',
                 attributes: [
@@ -96,9 +97,10 @@ class GoogleAdsService {
                     'campaign.primary_status',
                     'campaign.primary_status_reasons'
                 ],
-                date_range: range === 'ALL_TIME' ? '20240101,' + new Date().toISOString().split('T')[0].replace(/-/g, '') : range,
+                date_range: range,
                 limit: 100,
             });
+
 
             if (!campaigns || campaigns.length === 0) return [];
 

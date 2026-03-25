@@ -20,6 +20,24 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Memory Cache Utility
+const CACHE = {
+    clients: new Map(),
+    reports: new Map()
+};
+
+const getCached = (map, key) => {
+    const entry = map.get(key);
+    if (entry && entry.expiry > Date.now()) return entry.data;
+    map.delete(key);
+    return null;
+};
+
+const setCached = (map, key, data, ttlMs) => {
+    map.set(key, { data, expiry: Date.now() + ttlMs });
+};
+
+
 // Middleware to inject client-specific services
 const withPlatformService = async (req, res, next) => {
     const clientId = (req.query && req.query.clientId) ||
@@ -34,11 +52,18 @@ const withPlatformService = async (req, res, next) => {
 
     try {
         if (!db) throw new Error("Database not connected");
-        const doc = await db.collection('clients').doc(clientId).get();
-        if (!doc.exists) return res.status(404).json({ error: 'Client not found' });
 
-        const clientData = doc.data();
+        // Check cache for client config (5 min TTL)
+        let clientData = getCached(CACHE.clients, clientId);
+        if (!clientData) {
+            const doc = await db.collection('clients').doc(clientId).get();
+            if (!doc.exists) return res.status(404).json({ error: 'Client not found' });
+            clientData = doc.data();
+            setCached(CACHE.clients, clientId, clientData, 5 * 60 * 1000);
+        }
+
         req.clientData = clientData;
+
 
         // Instantiate services on-demand
         if (clientData.google) {
@@ -77,7 +102,15 @@ app.get('/api/dashboard', async (req, res) => {
     if (platform === 'Google') {
         try {
             if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured for this client' });
-            const liveCampaigns = await req.googleService.fetchCampaigns(dateRange);
+
+            const cacheKey = `google-dash-${req.clientData.id}-${dateRange}`;
+            let liveCampaigns = getCached(CACHE.reports, cacheKey);
+
+            if (!liveCampaigns) {
+                liveCampaigns = await req.googleService.fetchCampaigns(dateRange);
+                setCached(CACHE.reports, cacheKey, liveCampaigns, 60 * 1000);
+            }
+
             console.log(`[Dashboard] Fetched ${liveCampaigns?.length || 0} live campaigns for ${dateRange}`);
             if (liveCampaigns) {
                 const totalLeads = liveCampaigns.reduce((acc, curr) => acc + (curr.leads || 0), 0);
@@ -134,7 +167,14 @@ app.get('/api/dashboard', async (req, res) => {
     if (platform === 'Meta') {
         try {
             if (!req.metaService) return res.status(400).json({ error: 'Meta Ads not configured for this client' });
-            const metaDash = await req.metaService.fetchDashboard(dateRange);
+
+            const cacheKey = `meta-dash-${req.clientData.id}-${dateRange}`;
+            let metaDash = getCached(CACHE.reports, cacheKey);
+
+            if (!metaDash) {
+                metaDash = await req.metaService.fetchDashboard(dateRange);
+                setCached(CACHE.reports, cacheKey, metaDash, 60 * 1000);
+            }
 
             if (metaDash) {
                 const alerts = [];
@@ -180,53 +220,86 @@ app.get('/api/campaigns', async (req, res) => {
     const { platform, range } = req.query;
     const dateRange = range || 'LAST_30_DAYS';
 
+    const cacheKey = `${platform}-campaigns-${req.clientData.id}-${dateRange}`;
+    const cached = getCached(CACHE.reports, cacheKey);
+    if (cached) return res.json(cached);
+
     if (platform === 'Google') {
-        if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
-        const campaigns = await req.googleService.fetchCampaigns(dateRange);
-        if (campaigns) {
+        try {
+            if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
+            const campaigns = await req.googleService.fetchCampaigns(dateRange);
             const classified = GoogleEngine.classifyCampaigns(campaigns);
-            return res.json(classified);
+            setCached(CACHE.reports, cacheKey, classified, 60 * 1000);
+            res.json(classified);
+        } catch (err) {
+            res.status(500).json({ error: err.message });
         }
+    } else if (platform === 'Meta') {
+        try {
+            if (!req.metaService) return res.status(400).json({ error: 'Meta Ads not configured' });
+            const campaigns = await req.metaService.fetchCampaigns(dateRange);
+            setCached(CACHE.reports, cacheKey, campaigns, 60 * 1000);
+            res.json(campaigns);
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    } else {
+        res.json([]);
     }
-
-    if (platform === 'Meta') {
-        if (!req.metaService) return res.status(400).json({ error: 'Meta Ads not configured' });
-        const campaigns = await req.metaService.fetchCampaigns(dateRange);
-        return res.json(campaigns);
-    }
-
-    res.json([]);
 });
 
 app.get('/api/adsets', async (req, res) => {
     const { platform, range } = req.query;
     const dateRange = range || 'LAST_30_DAYS';
 
+    const cacheKey = `${platform}-adsets-${req.clientData.id}-${dateRange}`;
+    const cached = getCached(CACHE.reports, cacheKey);
+    if (cached) return res.json(cached);
+
     if (platform === 'Google') {
-        if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
-        const adGroups = await req.googleService.fetchAdGroups(dateRange);
-        return res.json(adGroups);
+        try {
+            if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
+            const adGroups = await req.googleService.fetchAdGroups(dateRange);
+            setCached(CACHE.reports, cacheKey, adGroups, 60 * 1000);
+            return res.json(adGroups);
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    } else if (platform === 'Meta') {
+        try {
+            if (!req.metaService) return res.status(400).json({ error: 'Meta Ads not configured' });
+            const adsets = await req.metaService.fetchAdsets(dateRange);
+            setCached(CACHE.reports, cacheKey, adsets, 60 * 1000);
+            return res.json(adsets);
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    } else {
+        res.json([]);
     }
-
-    if (platform === 'Meta') {
-        if (!req.metaService) return res.status(400).json({ error: 'Meta Ads not configured' });
-        const adsets = await req.metaService.fetchAdsets(dateRange);
-        return res.json(adsets);
-    }
-
-    res.json([]);
 });
+
 
 app.get('/api/keywords', async (req, res) => {
     const { platform, range } = req.query;
     const dateRange = range || 'LAST_30_DAYS';
+    const cacheKey = `${platform}-keywords-${req.clientData.id}-${dateRange}`;
+
+    const cached = getCached(CACHE.reports, cacheKey);
+    if (cached) return res.json(cached);
 
     if (platform === 'Google') {
-        if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
-        const rawKeywords = await req.googleService.fetchKeywords(dateRange);
-        const processed = GoogleEngine.processKeywords(rawKeywords);
-        return res.json(processed);
+        try {
+            if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
+            const rawKeywords = await req.googleService.fetchKeywords(dateRange);
+            const processed = GoogleEngine.processKeywords(rawKeywords);
+            setCached(CACHE.reports, cacheKey, processed, 60 * 1000);
+            return res.json(processed);
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
     }
+
 
     if (platform === 'Meta') {
         if (!req.metaService) return res.status(400).json({ error: 'Meta Ads not configured' });
@@ -255,45 +328,71 @@ app.get('/api/keywords', async (req, res) => {
             g.avgQs = parseFloat((total / (g.keywords.length || 1)).toFixed(1));
             return g;
         });
+        setCached(CACHE.reports, cacheKey, result, 60 * 1000);
         return res.json(result);
     }
 
     res.json([]);
 });
 
+
 app.get('/api/search_terms', async (req, res) => {
     const { platform, range } = req.query;
     const dateRange = range || 'LAST_30_DAYS';
 
+    const cacheKey = `${platform}-search-terms-${req.clientData.id}-${dateRange}`;
+    const cached = getCached(CACHE.reports, cacheKey);
+    if (cached) return res.json(cached);
+
     if (platform === 'Google') {
-        if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
-        const rawTerms = await req.googleService.fetchSearchTerms(dateRange);
-        const processed = GoogleEngine.processSearchTerms(rawTerms);
-        return res.json(processed);
+        try {
+            if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
+            const rawTerms = await req.googleService.fetchSearchTerms(dateRange);
+            const processed = GoogleEngine.processSearchTerms(rawTerms);
+            setCached(CACHE.reports, cacheKey, processed, 60 * 1000);
+            return res.json(processed);
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
     }
 
     if (platform === 'Meta') {
-        if (!req.metaService) return res.status(400).json({ error: 'Meta Ads not configured' });
-        // Meta equivalent: Placement / Platform breakdown
-        const placements = await req.metaService.fetchPlacementBreakdown(dateRange);
-        return res.json(placements);
+        try {
+            if (!req.metaService) return res.status(400).json({ error: 'Meta Ads not configured' });
+            const placements = await req.metaService.fetchPlacementBreakdown(dateRange);
+            setCached(CACHE.reports, cacheKey, placements, 60 * 1000);
+            return res.json(placements);
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
     }
 
     res.json([]);
 });
 
+
 app.get('/api/creatives', async (req, res) => {
     const { platform, range } = req.query;
     const dateRange = range || 'LAST_30_DAYS';
 
+    const cacheKey = `${platform}-creatives-${req.clientData.id}-${dateRange}`;
+    const cached = getCached(CACHE.reports, cacheKey);
+    if (cached) return res.json(cached);
+
     if (platform === 'Google') {
-        if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
-        const rawAds = await req.googleService.fetchAds(dateRange);
-        if (rawAds && rawAds.length > 0) {
-            const processed = GoogleEngine.processAds(rawAds);
-            return res.json(processed);
+        try {
+            if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
+            const rawAds = await req.googleService.fetchAds(dateRange);
+            if (rawAds && rawAds.length > 0) {
+                const processed = GoogleEngine.processAds(rawAds);
+                setCached(CACHE.reports, cacheKey, processed, 60 * 1000);
+                return res.json(processed);
+            }
+        } catch (err) {
+            res.status(500).json({ error: err.message });
         }
     }
+
 
     // Mock data for development/demo
     const mockCreatives = [
@@ -491,20 +590,47 @@ app.get('/api/breakdowns', async (req, res) => {
 
 app.get('/api/recommendations', async (req, res) => {
     const { platform, range } = req.query;
+    const dateRange = range || 'LAST_30_DAYS';
+    const cacheKey = `${platform}-recs-${req.clientData.id}-${dateRange}`;
+
+    const cached = getCached(CACHE.reports, cacheKey);
+    if (cached) return res.json(cached);
+
     if (platform === 'Google') {
-        if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
-        const campaigns = await req.googleService.fetchCampaigns(range || 'LAST_30_DAYS');
-        const recs = GoogleEngine.generateRecommendations(campaigns);
-        return res.json(recs);
+        try {
+            if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
+            const campaigns = await req.googleService.fetchCampaigns(dateRange);
+            const recs = GoogleEngine.generateRecommendations(campaigns);
+            setCached(CACHE.reports, cacheKey, recs, 60 * 1000);
+            return res.json(recs);
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    } else if (platform === 'Meta') {
+        try {
+            if (!req.metaService) return res.status(400).json({ error: 'Meta Ads not configured' });
+            const recs = await req.metaService.fetchAdRelevanceDiagnostics(dateRange);
+            setCached(CACHE.reports, cacheKey, recs, 60 * 1000);
+            return res.json(recs);
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
     }
     res.json([]);
 });
 
+
 app.get('/api/dashboard/history', async (req, res) => {
     const { platform, range } = req.query;
+
+    const cacheKey = `${platform}-history-${req.clientData.id}-${range || '30D'}`;
+    const cached = getCached(CACHE.reports, cacheKey);
+    if (cached) return res.json(cached);
+
     if (platform === 'Google') {
         if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
         const history = await req.googleService.fetchHistoricalMetrics(range);
+        setCached(CACHE.reports, cacheKey, history, 60 * 1000);
         return res.json(history);
     }
     res.json([]);

@@ -31,22 +31,27 @@ const RecommendationsView = ({ recs, handleAction, platform, onCampaignClick, ca
                                 </div>
                             ) : (
                                 <>
-                                    <button
-                                        onClick={() => handleAction(r.id, 'EXECUTE')}
-                                        className="flex-[2] bg-primary text-background text-[10px] font-black py-3 rounded-xl hover:opacity-90 transition-all uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(234,179,8,0.2)]"
-                                    >
-                                        <Play size={14} fill="currentColor" /> Approve & Execute
-                                    </button>
+                                    {r.isActionable !== false && (
+                                        <button
+                                            onClick={() => handleAction(r.id, 'EXECUTE')}
+                                            className="flex-[2] bg-primary text-background text-[10px] font-black py-3 rounded-xl hover:opacity-90 transition-all uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(234,179,8,0.2)]"
+                                        >
+                                            <Play size={14} fill="currentColor" /> Approve & Execute
+                                        </button>
+                                    )}
                                     <button
                                         onClick={() => {
-                                            const campaign = campaigns.find(c => c.id === r.targetId || c.name === r.targetName);
+                                            const targetId = r.targetId || r.campaignId;
+                                            const targetName = r.targetName || r.campaignName;
+                                            const campaign = campaigns.find(c => c.id === targetId || c.name === targetName);
                                             if (campaign) onCampaignClick(campaign);
                                         }}
-                                        className="flex-1 border border-white/10 text-[10px] font-bold py-3 rounded-xl hover:bg-white/5 transition-all text-text-muted uppercase tracking-widest"
+                                        className={`flex-1 border border-white/10 text-[10px] font-bold py-3 rounded-xl hover:bg-white/5 transition-all text-text-muted uppercase tracking-widest ${r.isActionable === false ? 'w-full flex-none' : ''}`}
                                     >
                                         Inspect
                                     </button>
                                 </>
+
                             )}
                         </div>
                     </div>

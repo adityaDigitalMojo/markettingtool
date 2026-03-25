@@ -170,7 +170,19 @@ class GoogleEngine {
         if (!campaigns) return [];
         const recs = [];
         campaigns.forEach(c => {
-            if (c.cpl > 1500) {
+            if (c.cpl > 2500 && c.leads > 0) {
+                recs.push({
+                    id: `rec_pause_${c.id}`,
+                    campaignId: c.id,
+                    campaignName: c.name,
+                    type: 'PAUSE_CAMPAIGN',
+                    impact: 'High',
+                    description: `CPL of ₹${c.cpl} is significantly above target. Pause to prevent further waste.`,
+                    action: 'Pause Campaign',
+                    isActionable: true,
+                    actionType: 'PAUSE'
+                });
+            } else if (c.cpl > 1500) {
                 recs.push({
                     id: `rec_cpl_${c.id}`,
                     campaignId: c.id,
@@ -178,7 +190,8 @@ class GoogleEngine {
                     type: 'OPTIMIZE_CPL',
                     impact: 'High',
                     description: `CPL is ₹${c.cpl}, which is above target. Check keyword intent and landing page.`,
-                    action: 'Review Ad Copy'
+                    action: 'Review Ad Copy',
+                    isActionable: false
                 });
             }
             if (c.ctr < 1.0) {
@@ -189,12 +202,14 @@ class GoogleEngine {
                     type: 'IMPROVE_CTR',
                     impact: 'Medium',
                     description: `CTR is ${c.ctr}%. Consider testing new headlines.`,
-                    action: 'Fix Ad Copy'
+                    action: 'Fix Ad Copy',
+                    isActionable: false
                 });
             }
         });
         return recs;
     }
+
 }
 
 module.exports = GoogleEngine;
