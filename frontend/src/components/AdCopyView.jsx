@@ -297,9 +297,11 @@ const CreativeDetailModal = ({ creative, isOpen, onClose, onAction }) => {
     );
 };
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 // --- Main View Component ---
 
-const AdCopyView = ({ platform, range, onAction }) => {
+const AdCopyView = ({ platform, clientId, range, onAction }) => {
     const [activeTab, setActiveTab] = useState('build');
     const [creatives, setCreatives] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -315,9 +317,10 @@ const AdCopyView = ({ platform, range, onAction }) => {
     });
 
     const fetchCreatives = async () => {
+        if (!clientId) return;
         setLoading(true);
         try {
-            const res = await axios.get(`http://localhost:8000/api/creatives?platform=${platform}&range=${range}`);
+            const res = await axios.get(`${API_BASE}/api/creatives?platform=${platform}&clientId=${clientId}&range=${range}`);
             setCreatives(res.data);
         } catch (err) {
             console.error("Error fetching creatives:", err);
@@ -330,7 +333,7 @@ const AdCopyView = ({ platform, range, onAction }) => {
         if (activeTab === 'creatives') {
             fetchCreatives();
         }
-    }, [activeTab, platform, range]);
+    }, [activeTab, platform, clientId, range]);
 
     // Handle form changes without triggering re-render of sub-components that cause focus loss
     const handleFormChange = (type, index, value) => {

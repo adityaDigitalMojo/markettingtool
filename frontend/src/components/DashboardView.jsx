@@ -13,6 +13,8 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import axios from 'axios';
 import AlertsModal from './AlertsModal';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 const MetricCard = ({ title, value, delta, icon: Icon }) => (
     <div className="card">
         <div className="flex justify-between items-start mb-4">
@@ -35,14 +37,14 @@ const DashboardView = ({ data, campaigns, platform, clientId, clients, syncData,
     React.useEffect(() => {
         const fetchHistory = async () => {
             try {
-                const res = await axios.get(`http://localhost:8000/api/dashboard/history?platform=${platform}&range=${range}`);
+                const res = await axios.get(`${API_BASE}/api/dashboard/history?platform=${platform}&range=${range}&clientId=${clientId}`);
                 setHistory(res.data);
             } catch (err) {
                 console.error("Error fetching history:", err);
             }
         };
-        if (platform === 'Google') fetchHistory();
-    }, [platform, range]);
+        if (platform === 'Google' && clientId) fetchHistory();
+    }, [platform, range, clientId]);
 
     if (!data) return <div className="flex animate-pulse items-center justify-center h-64 text-text-muted">Loading dashboard...</div>;
 
@@ -51,13 +53,15 @@ const DashboardView = ({ data, campaigns, platform, clientId, clients, syncData,
         { name: 'Thu', leads: 0 }, { name: 'Fri', leads: 0 }, { name: 'Sat', leads: 0 }, { name: 'Sun', leads: 0 }
     ];
 
+    const currentClient = clients.find(c => c.id === clientId);
+
     return (
         <div className="flex flex-col gap-10">
             <header className="flex justify-between items-center">
                 <div className="flex items-center gap-8">
                     <div>
                         <h1 className="text-2xl font-bold">Performance Dashboard</h1>
-                        <p className="text-text-muted">{clients[clientId]?.location || 'India'} • {platform} Ads</p>
+                        <p className="text-text-muted">{currentClient?.location || 'India'} • {platform} Ads</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-4">

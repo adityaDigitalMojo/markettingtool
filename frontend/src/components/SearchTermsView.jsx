@@ -2,16 +2,19 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Search, Filter, ArrowUpRight, ChevronDown, CheckCircle2, PlusCircle, MinusCircle } from 'lucide-react';
 
-const SearchTermsView = ({ platform, range, onAction }) => {
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+const SearchTermsView = ({ platform, clientId, range, onAction }) => {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
         const fetchData = async () => {
+            if (!clientId) return;
             setLoading(true);
             try {
-                const res = await axios.get(`http://localhost:8000/api/search_terms?platform=${platform}&range=${range}`);
+                const res = await axios.get(`${API_BASE}/api/search_terms?platform=${platform}&clientId=${clientId}&range=${range}`);
                 setData(res.data);
             } catch (err) {
                 console.error("Error fetching search terms:", err);
@@ -19,7 +22,7 @@ const SearchTermsView = ({ platform, range, onAction }) => {
             setLoading(false);
         };
         fetchData();
-    }, [platform, range]);
+    }, [platform, clientId, range]);
 
     if (loading) return <div className="animate-pulse flex items-center justify-center h-64 text-text-muted transition-all">Analyzing Search Terms...</div>;
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Target, BarChart, TrendingUp, Zap } from 'lucide-react';
 
-const BenchmarksView = ({ platform }) => {
+const BenchmarksView = ({ platform, clientId }) => {
     const benchmarks = platform === 'Meta' ? {
         cpl: 720,
         ctr: 0.7,

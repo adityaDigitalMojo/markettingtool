@@ -1,7 +1,7 @@
 import React from 'react';
 import { ShieldAlert, CheckCircle2, AlertTriangle, Info } from 'lucide-react';
 
-const AuditPanelsView = ({ platform }) => {
+const AuditPanelsView = ({ platform, clientId }) => {
     return (
         <div className="flex flex-col gap-8">
             <header>

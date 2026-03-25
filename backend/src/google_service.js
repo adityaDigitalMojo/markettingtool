@@ -1,36 +1,27 @@
-const { GoogleAdsApi, enums } = require('google-ads-api');
-
 class GoogleAdsService {
-    constructor() {
+    constructor(credentials) {
         this.client = null;
         this.customer = null;
-    }
+        this.customer_id = credentials.customerId;
 
-    initialize() {
-        if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET || !process.env.GOOGLE_REFRESH_TOKEN) {
-            console.warn("⚠️ Google Ads API credentials missing in .env. Falling back to CSV.");
-            return false;
+        if (!credentials.clientId || !credentials.clientSecret || !credentials.refreshToken) {
+            console.warn("⚠️ Google Ads API credentials incomplete for client.");
+            return;
         }
 
         try {
-            console.log("✅ Google Ads API Client Initialized. Enums present:", !!enums);
-            if (enums) console.log("CampaignStatus Enabled:", enums.CampaignStatus?.ENABLED);
-
             this.client = new GoogleAdsApi({
-                client_id: process.env.GOOGLE_CLIENT_ID,
-                client_secret: process.env.GOOGLE_CLIENT_SECRET,
-                developer_token: process.env.GOOGLE_DEVELOPER_TOKEN,
+                client_id: credentials.clientId,
+                client_secret: credentials.clientSecret,
+                developer_token: credentials.developerToken,
             });
             this.customer = this.client.Customer({
-                customer_id: process.env.GOOGLE_CUSTOMER_ID,
-                login_customer_id: process.env.GOOGLE_LOGIN_CUSTOMER_ID,
-                refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+                customer_id: credentials.customerId,
+                login_customer_id: credentials.loginCustomerId,
+                refresh_token: credentials.refreshToken,
             });
-            console.log("✅ Google Ads API Client Initialized.");
-            return true;
         } catch (err) {
             console.error("❌ Failed to initialize Google Ads Client:", err);
-            return false;
         }
     }
 
@@ -38,7 +29,6 @@ class GoogleAdsService {
         if (!this.customer) return [];
         try {
             const today = new Date();
-            const formatDate = (date) => date.toISOString().split('T')[0].replace(/-/g, '');
             const formatDateQuery = (date) => date.toISOString().split('T')[0];
 
             let start = new Date();
@@ -55,8 +45,6 @@ class GoogleAdsService {
             const startDate = formatDateQuery(start);
             const endDate = formatDateQuery(today);
 
-            console.log(`[GoogleAds] Querying history for ${process.env.GOOGLE_CUSTOMER_ID} between ${startDate} and ${endDate}`);
-
             const history = await this.customer.query(`
                 SELECT 
                     segments.date, 
@@ -65,8 +53,6 @@ class GoogleAdsService {
                 FROM campaign 
                 WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
             `);
-
-            console.log(`[GoogleAds] History query result count: ${history?.length || 0}`);
 
             const grouped = {};
             history.forEach(h => {
@@ -88,7 +74,6 @@ class GoogleAdsService {
     async fetchCampaigns(range = 'LAST_30_DAYS') {
         if (!this.customer) return [];
         try {
-            console.log(`[GoogleAds] Querying for customer: ${process.env.GOOGLE_CUSTOMER_ID} with range: ${range}`);
             const campaigns = await this.customer.report({
                 entity: 'campaign',
                 attributes: [
@@ -178,7 +163,7 @@ class GoogleAdsService {
                     5: 'DISPLAY_STANDARD', 6: 'DISPLAY_SMART', 7: 'DISPLAY_GMAIL',
                     8: 'SHOPPING_STANDARD', 9: 'SHOPPING_SMART',
                     10: 'VIDEO_STANDARD', 11: 'VIDEO_OUTSTREAM',
-                    14: 'DEMAND_GEN' // Common demand gen type
+                    14: 'DEMAND_GEN'
                 };
                 return {
                     id: g.ad_group.id,
@@ -195,7 +180,7 @@ class GoogleAdsService {
                     impressions: g.metrics.impressions,
                     clicks: g.metrics.clicks,
                     cvr: g.metrics.clicks > 0 ? parseFloat(((g.metrics.all_conversions / g.metrics.clicks) * 100).toFixed(2)) : 0,
-                    is: 80 // Mocking IS for now 
+                    is: 80
                 };
             });
         } catch (err) {
@@ -252,9 +237,6 @@ class GoogleAdsService {
     async fetchKeywords(range = 'LAST_30_DAYS') {
         if (!this.customer) return [];
         try {
-            console.log(`[GoogleAds] Fetching keywords (Step 1: QS, Step 2: Metrics)`);
-
-            // Step 1: Quality Scores
             const qsResults = await this.customer.query(`
                 SELECT 
                     ad_group_criterion.criterion_id, 
@@ -271,7 +253,6 @@ class GoogleAdsService {
                 AND ad_group_criterion.status = 'ENABLED'
             `);
 
-            // Step 2: Metrics
             const metricsResults = await this.customer.query(`
                 SELECT 
                     ad_group_criterion.criterion_id,
@@ -319,9 +300,6 @@ class GoogleAdsService {
     async fetchBreakdowns(dimension, campaignId = null, range = 'LAST_30_DAYS') {
         if (!this.customer) return [];
         try {
-            console.log(`[GoogleAds] Fetching breakdowns for ${dimension} (Campaign: ${campaignId || 'All'}, Range: ${range})`);
-
-            // For ALL_TIME, compute explicit start/end dates
             let dateClause;
             if (range === 'ALL_TIME') {
                 const endDate = new Date().toISOString().split('T')[0];
@@ -351,7 +329,6 @@ class GoogleAdsService {
                     WHERE ${dateClause}${campaignClause} AND metrics.impressions > 0
                 `);
 
-                // https://developers.google.com/google-ads/api/reference/rpc/v15/AgeRangeTypeEnum.AgeRangeType
                 const ageLabel = {
                     503001: '18-24', 503002: '25-34', 503003: '35-44',
                     503004: '45-54', 503005: '55-64', 503006: '65+', 503999: 'Unknown'
@@ -374,7 +351,6 @@ class GoogleAdsService {
                     WHERE ${dateClause}${campaignClause} AND metrics.impressions > 0
                 `);
 
-                // https://developers.google.com/google-ads/api/reference/rpc/v15/GenderTypeEnum.GenderType
                 const genLabel = { 10: 'Male', 11: 'Female', 20: 'Unknown' };
 
                 raw.forEach(r => {
@@ -436,7 +412,6 @@ class GoogleAdsService {
                 });
             }
 
-            // Finalize grouped data with derived metrics
             return Object.values(grouped).map(item => ({
                 dimension: item.dimension,
                 leads: item.leads,
@@ -509,7 +484,7 @@ class GoogleAdsService {
         if (!this.customer) return;
         const statusEnum = status === 'ENABLED' ? 2 : 3;
         await this.customer.campaigns.update([{
-            resource_name: `customers/${process.env.GOOGLE_CUSTOMER_ID}/campaigns/${campaignId}`,
+            resource_name: `customers/${this.customer_id}/campaigns/${campaignId}`,
             status: statusEnum
         }]);
     }
@@ -527,4 +502,5 @@ class GoogleAdsService {
     }
 }
 
-module.exports = new GoogleAdsService();
+module.exports = GoogleAdsService;
+

@@ -15,7 +15,9 @@ import {
     Search
 } from 'lucide-react';
 
-const BreakdownsView = ({ platform, campaigns, range }) => {
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+const BreakdownsView = ({ platform, clientId, campaigns, range }) => {
     const [dimension, setDimension] = useState('Age');
     const [selectedCampaignId, setSelectedCampaignId] = useState('OVERALL');
     const [data, setData] = useState([]);
@@ -31,10 +33,11 @@ const BreakdownsView = ({ platform, campaigns, range }) => {
     ];
 
     const fetchData = async () => {
+        if (!clientId) return;
         setLoading(true);
         try {
             const campaignParam = selectedCampaignId === 'OVERALL' ? '' : `&campaignId=${selectedCampaignId}`;
-            const res = await axios.get(`http://localhost:8000/api/breakdowns?platform=${platform}&dimension=${dimension}${campaignParam}&range=${range}`);
+            const res = await axios.get(`${API_BASE}/api/breakdowns?platform=${platform}&clientId=${clientId}&dimension=${dimension}${campaignParam}&range=${range}`);
             setData(res.data);
         } catch (err) {
             console.error("Error fetching breakdowns:", err);
@@ -46,7 +49,7 @@ const BreakdownsView = ({ platform, campaigns, range }) => {
 
     useEffect(() => {
         fetchData();
-    }, [dimension, selectedCampaignId, range, platform]);
+    }, [dimension, selectedCampaignId, range, platform, clientId]);
 
     const totalSpend = data.reduce((sum, item) => sum + item.spend, 0);
     const bestPerformer = [...data].sort((a, b) => (a.cpl || Infinity) - (b.cpl || Infinity))[0];

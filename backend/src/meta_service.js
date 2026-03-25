@@ -1,19 +1,12 @@
-const axios = require('axios');
-require('dotenv').config();
-
 class MetaAdsService {
-    constructor() {
-        this.accessToken = process.env.META_ACCESS_TOKEN;
-        this.adAccountId = process.env.META_AD_ACCOUNT_ID || '391022327028566';
+    constructor(credentials) {
+        this.accessToken = credentials.accessToken;
+        this.adAccountId = credentials.adAccountId;
         this.baseUrl = 'https://graph.facebook.com/v19.0';
-    }
 
-    initialize() {
         if (this.adAccountId && !this.adAccountId.startsWith('act_')) {
             this.adAccountId = `act_${this.adAccountId}`;
         }
-        console.log(`✅ Meta Ads Service Initialized for ${this.adAccountId}`);
-        return !!this.accessToken;
     }
 
     _getDateRange(range) {
@@ -23,9 +16,9 @@ class MetaAdsService {
             const since = new Date(today); since.setDate(today.getDate() - 7);
             return JSON.stringify({ since: fmt(since), until: fmt(today) });
         } else if (range === 'ALL_TIME') {
+            // Updated to be more realistic as a starting point if no data found
             return JSON.stringify({ since: '2024-01-01', until: fmt(today) });
         }
-        // Default: LAST_30_DAYS
         const since = new Date(today); since.setDate(today.getDate() - 30);
         return JSON.stringify({ since: fmt(since), until: fmt(today) });
     }
@@ -42,7 +35,7 @@ class MetaAdsService {
                 }
             });
 
-            return response.data.data.map(c => {
+            return (response.data.data || []).map(c => {
                 const ins = c.insights?.data?.[0] || {};
                 const impressions = parseInt(ins.impressions || 0);
                 const reach = parseInt(ins.reach || 0);
@@ -81,7 +74,7 @@ class MetaAdsService {
                 }
             });
 
-            return response.data.data.map(as => {
+            return (response.data.data || []).map(as => {
                 const ins = as.insights?.data?.[0] || {};
                 const spend = parseFloat(ins.spend || 0);
                 const impressions = parseInt(ins.impressions || 0);
@@ -117,7 +110,7 @@ class MetaAdsService {
                 }
             });
 
-            return response.data.data.map(ad => {
+            return (response.data.data || []).map(ad => {
                 const ins = ad.insights?.data?.[0] || {};
                 const leads = (ins.actions || []).reduce((acc, a) =>
                     ['lead', 'offsite_conversion.fb_pixel_lead'].includes(a.action_type)
@@ -144,7 +137,6 @@ class MetaAdsService {
         }
     }
 
-    // Meta equivalent of Quality Score: Ad Relevance Diagnostics
     async fetchAdRelevanceDiagnostics(range = 'LAST_30_DAYS') {
         if (!this.accessToken) return [];
         try {
@@ -157,7 +149,7 @@ class MetaAdsService {
                 }
             });
 
-            return response.data.data.map(ad => {
+            return (response.data.data || []).map(ad => {
                 const ins = ad.insights?.data?.[0] || {};
                 const leads = (ins.actions || []).reduce((acc, a) =>
                     ['lead', 'offsite_conversion.fb_pixel_lead'].includes(a.action_type)
@@ -170,46 +162,32 @@ class MetaAdsService {
                 const eRanking = ins.engagement_rate_ranking || 'UNKNOWN';
                 const cRanking = ins.conversion_rate_ranking || 'UNKNOWN';
 
-                // Map Meta ranking to a score 1-10
                 const rankingToScore = (r) => {
-                    if (['ABOVE_AVERAGE']) return 8;
+                    if (r === 'ABOVE_AVERAGE') return 8;
                     if (r === 'AVERAGE') return 5;
                     if (r === 'BELOW_AVERAGE') return 3;
                     return 0;
                 };
                 const qs = Math.round((rankingToScore(qRanking) + rankingToScore(eRanking) + rankingToScore(cRanking)) / 3);
 
-                // Build recommendation based on worst metric
                 let recommendation = null;
                 if (cRanking === 'BELOW_AVERAGE') {
                     recommendation = {
                         type: 'CONV_RATE', action: 'Fix Landing Page / Offer', status: 'CRITICAL',
-                        reason: "Your conversion rate ranking is below average. Users click but don't convert, meaning the landing page or offer doesn't match expectations.",
-                        steps: [
-                            "Ensure landing page message matches the ad creative exactly",
-                            "Add a strong CTA above the fold (within first viewport)",
-                            "Reduce form fields to only what's necessary"
-                        ]
+                        reason: "Your conversion rate ranking is below average. Users click but don't convert.",
+                        steps: ["Ensure landing page message matches ad", "Add strong CTA", "Reduce form fields"]
                     };
                 } else if (qRanking === 'BELOW_AVERAGE') {
                     recommendation = {
                         type: 'QUALITY', action: 'Improve Creative Quality', status: 'CRITICAL',
-                        reason: "Your ad quality ranking is below average. Facebook's algorithm is penalizing your ad, increasing your CPM.",
-                        steps: [
-                            "Replace image/video with higher-resolution, less cluttered creative",
-                            "Avoid excessive text in image overlays (keep under 20%)",
-                            "Use authentic, real photos instead of stock imagery"
-                        ]
+                        reason: "Your ad quality ranking is below average.",
+                        steps: ["Replace with high-res creative", "Avoid excessive text", "Use authentic photos"]
                     };
                 } else if (eRanking === 'BELOW_AVERAGE') {
                     recommendation = {
                         type: 'ENGAGEMENT', action: 'Improve Hook / Copy', status: 'IMPROVE',
-                        reason: "Your engagement rate ranking is below average. Users aren't interacting with your ad content.",
-                        steps: [
-                            "Start the first 3 seconds of your video with a strong visual hook",
-                            "Ask a direct question in your primary text",
-                            "Use social proof (testimonials, ratings) in the ad copy"
-                        ]
+                        reason: "Your engagement rate ranking is below average.",
+                        steps: ["Strong visual hook", "Ask direct question", "Use social proof"]
                     };
                 }
 
@@ -228,7 +206,6 @@ class MetaAdsService {
         }
     }
 
-    // Meta equivalent of Search Terms: Placement breakdown
     async fetchPlacementBreakdown(range = 'LAST_30_DAYS') {
         if (!this.accessToken) return [];
         try {
@@ -322,4 +299,5 @@ class MetaAdsService {
     }
 }
 
-module.exports = new MetaAdsService();
+module.exports = MetaAdsService;
+

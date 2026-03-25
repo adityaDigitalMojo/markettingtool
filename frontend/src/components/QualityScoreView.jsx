@@ -3,16 +3,19 @@ import axios from 'axios';
 import { ShieldCheck, Info, ChevronDown } from 'lucide-react';
 import QSImprovementModal from './QSImprovementModal';
 
-const QualityScoreView = ({ platform, range, onAction }) => {
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+const QualityScoreView = ({ platform, clientId, range, onAction }) => {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedKeyword, setSelectedKeyword] = useState(null);
 
     useEffect(() => {
         const fetchData = async () => {
+            if (!clientId) return;
             setLoading(true);
             try {
-                const res = await axios.get(`http://localhost:8000/api/keywords?platform=${platform}&range=${range}`);
+                const res = await axios.get(`${API_BASE}/api/keywords?platform=${platform}&clientId=${clientId}&range=${range}`);
                 setData(res.data);
             } catch (err) {
                 console.error("Error fetching keywords data:", err);
@@ -20,7 +23,7 @@ const QualityScoreView = ({ platform, range, onAction }) => {
             setLoading(false);
         };
         fetchData();
-    }, [platform, range]);
+    }, [platform, clientId, range]);
 
     if (loading) return <div className="animate-pulse flex items-center justify-center h-64 text-text-muted transition-all">Analyzing Quality Scores...</div>;
 

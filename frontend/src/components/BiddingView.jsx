@@ -2,15 +2,18 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { DollarSign, Percent, TrendingDown, Target, Info } from 'lucide-react';
 
-const BiddingView = ({ platform, range, onCampaignClick, onAction }) => {
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+const BiddingView = ({ platform, clientId, range, onCampaignClick, onAction }) => {
     const [data, setData] = useState({ analysis: [], stats: { decrease: 0, hold: 0, increase: 0 } });
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchData = async () => {
+            if (!clientId) return;
             setLoading(true);
             try {
-                const res = await axios.get(`http://localhost:8000/api/bidding/analysis?platform=${platform}&range=${range}`);
+                const res = await axios.get(`${API_BASE}/api/bidding/analysis?platform=${platform}&clientId=${clientId}&range=${range}`);
                 setData(res.data);
             } catch (err) {
                 console.error("Error fetching bidding data:", err);
@@ -18,7 +21,7 @@ const BiddingView = ({ platform, range, onCampaignClick, onAction }) => {
             setLoading(false);
         };
         fetchData();
-    }, [platform, range]);
+    }, [platform, clientId, range]);
 
     if (loading) return <div className="animate-pulse flex items-center justify-center h-64 text-text-muted">Loading Bidding Analysis...</div>;
     if (!data || !Array.isArray(data.analysis)) return <div className="text-text-muted text-center py-20 font-bold uppercase tracking-widest opacity-30">No Bidding Data Available</div>;

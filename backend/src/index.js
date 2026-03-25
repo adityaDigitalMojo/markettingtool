@@ -7,16 +7,49 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
-const googleService = require('./google_service');
+const { db } = require('./firebaseClient');
+const GoogleAdsService = require('./google_service');
 const GoogleEngine = require('./google_engine');
-const metaService = require('./meta_service');
-
-googleService.initialize();
-metaService.initialize();
+const MetaAdsService = require('./meta_service');
+const clientController = require('./controllers/clientController');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Middleware to inject client-specific services
+const withPlatformService = async (req, res, next) => {
+    const clientId = req.query.clientId || req.body.clientId || req.headers['x-client-id'];
+
+    if (!clientId) {
+        // Allow client management routes to pass through without clientId
+        if (req.path.startsWith('/api/clients')) return next();
+        return res.status(400).json({ error: 'clientId is required' });
+    }
+
+    try {
+        if (!db) throw new Error("Database not connected");
+        const doc = await db.collection('clients').doc(clientId).get();
+        if (!doc.exists) return res.status(404).json({ error: 'Client not found' });
+
+        const clientData = doc.data();
+        req.clientData = clientData;
+
+        // Instantiate services on-demand
+        if (clientData.google) {
+            req.googleService = new GoogleAdsService(clientData.google);
+        }
+        if (clientData.meta) {
+            req.metaService = new MetaAdsService(clientData.meta);
+        }
+
+        next();
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to initialize client services: ' + err.message });
+    }
+};
+
+app.use(withPlatformService);
 
 const PORT = process.env.PORT || 8000;
 
@@ -27,13 +60,23 @@ const getClientDataPath = (clientId, platform) => {
     return path.join(__dirname, `../data/${clientId}_${platform.toLowerCase()}.csv`);
 };
 
+// Client Management Routes
+app.get('/api/clients', clientController.getClients);
+app.get('/api/clients/:id', clientController.getClientByClientId);
+app.post('/api/clients', clientController.createClient);
+app.put('/api/clients/:id', clientController.updateClient);
+app.delete('/api/clients/:id', clientController.deleteClient);
+
 app.get('/api/dashboard', async (req, res) => {
-    const { platform, clientId, range } = req.query;
+    const { platform, range } = req.query;
     const dateRange = range || 'LAST_30_DAYS';
+    const clientName = req.clientData.name || "Client";
+    const clientLocation = req.clientData.location || "Location";
 
     if (platform === 'Google') {
         try {
-            const liveCampaigns = await googleService.fetchCampaigns(dateRange);
+            if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured for this client' });
+            const liveCampaigns = await req.googleService.fetchCampaigns(dateRange);
             console.log(`[Dashboard] Fetched ${liveCampaigns?.length || 0} live campaigns for ${dateRange}`);
             if (liveCampaigns) {
                 const totalLeads = liveCampaigns.reduce((acc, curr) => acc + (curr.leads || 0), 0);
@@ -57,8 +100,8 @@ app.get('/api/dashboard', async (req, res) => {
                 }).filter(Boolean);
 
                 return res.json({
-                    client: "Amara",
-                    location: "Hyderabad",
+                    client: clientName,
+                    location: clientLocation,
                     platform: platform,
                     metrics: {
                         leads: Number(totalLeads || 0),
@@ -83,30 +126,37 @@ app.get('/api/dashboard', async (req, res) => {
             }
         } catch (err) {
             console.error("Dashboard error:", err);
+            return res.status(500).json({ error: err.message });
         }
     }
 
     if (platform === 'Meta') {
-        const metaDash = await metaService.fetchDashboard(dateRange);
-        if (metaDash) {
-            const alerts = [];
-            if (metaDash.cpl > 1500) alerts.push({ type: 'HIGH_CPL', message: `CPL of ₹${metaDash.cpl} is above threshold` });
-            if (metaDash.ctr < 1.0) alerts.push({ type: 'LOW_CTR', message: `CTR of ${metaDash.ctr}% is below benchmark` });
-            return res.json({
-                client: "Amara", location: "Hyderabad", platform,
-                metrics: {
-                    leads: metaDash.leads, leads_delta: 0,
-                    spend: metaDash.spend, spend_delta: 0,
-                    cpl: metaDash.cpl, cpl_delta: 0,
-                    ctr: metaDash.ctr, ctr_delta: 0,
-                    cpm: metaDash.cpm, cpc: metaDash.cpc,
-                    reach: metaDash.reach,
-                    active_alerts: alerts.length,
-                    pacing: 0,
-                    alerts
-                },
-                adsets_summary: { total: 0, winners: 0, watch: 0, underperformers: 0 }
-            });
+        try {
+            if (!req.metaService) return res.status(400).json({ error: 'Meta Ads not configured for this client' });
+            const metaDash = await req.metaService.fetchDashboard(dateRange);
+            if (metaDash) {
+                const alerts = [];
+                if (metaDash.cpl > 1500) alerts.push({ type: 'HIGH_CPL', message: `CPL of ₹${metaDash.cpl} is above threshold` });
+                if (metaDash.ctr < 1.0) alerts.push({ type: 'LOW_CTR', message: `CTR of ${metaDash.ctr}% is below benchmark` });
+                return res.json({
+                    client: clientName, location: clientLocation, platform,
+                    metrics: {
+                        leads: metaDash.leads, leads_delta: 0,
+                        spend: metaDash.spend, spend_delta: 0,
+                        cpl: metaDash.cpl, cpl_delta: 0,
+                        ctr: metaDash.ctr, ctr_delta: 0,
+                        cpm: metaDash.cpm, cpc: metaDash.cpc,
+                        reach: metaDash.reach,
+                        active_alerts: alerts.length,
+                        pacing: 0,
+                        alerts
+                    },
+                    adsets_summary: { total: 0, winners: 0, watch: 0, underperformers: 0 }
+                });
+            }
+        } catch (err) {
+            console.error("Meta dashboard error:", err);
+            return res.status(500).json({ error: err.message });
         }
     }
 
@@ -118,7 +168,8 @@ app.get('/api/campaigns', async (req, res) => {
     const dateRange = range || 'LAST_30_DAYS';
 
     if (platform === 'Google') {
-        const campaigns = await googleService.fetchCampaigns(dateRange);
+        if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
+        const campaigns = await req.googleService.fetchCampaigns(dateRange);
         if (campaigns) {
             const classified = GoogleEngine.classifyCampaigns(campaigns);
             return res.json(classified);
@@ -126,7 +177,8 @@ app.get('/api/campaigns', async (req, res) => {
     }
 
     if (platform === 'Meta') {
-        const campaigns = await metaService.fetchCampaigns(dateRange);
+        if (!req.metaService) return res.status(400).json({ error: 'Meta Ads not configured' });
+        const campaigns = await req.metaService.fetchCampaigns(dateRange);
         return res.json(campaigns);
     }
 
@@ -134,16 +186,18 @@ app.get('/api/campaigns', async (req, res) => {
 });
 
 app.get('/api/adsets', async (req, res) => {
-    const { clientId, platform, range } = req.query;
+    const { platform, range } = req.query;
     const dateRange = range || 'LAST_30_DAYS';
 
     if (platform === 'Google') {
-        const adGroups = await googleService.fetchAdGroups(dateRange);
+        if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
+        const adGroups = await req.googleService.fetchAdGroups(dateRange);
         return res.json(adGroups);
     }
 
     if (platform === 'Meta') {
-        const adsets = await metaService.fetchAdsets(dateRange);
+        if (!req.metaService) return res.status(400).json({ error: 'Meta Ads not configured' });
+        const adsets = await req.metaService.fetchAdsets(dateRange);
         return res.json(adsets);
     }
 
@@ -155,14 +209,16 @@ app.get('/api/keywords', async (req, res) => {
     const dateRange = range || 'LAST_30_DAYS';
 
     if (platform === 'Google') {
-        const rawKeywords = await googleService.fetchKeywords(dateRange);
+        if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
+        const rawKeywords = await req.googleService.fetchKeywords(dateRange);
         const processed = GoogleEngine.processKeywords(rawKeywords);
         return res.json(processed);
     }
 
     if (platform === 'Meta') {
+        if (!req.metaService) return res.status(400).json({ error: 'Meta Ads not configured' });
         // Meta equivalent: Ad Relevance Diagnostics grouped by adset
-        const raw = await metaService.fetchAdRelevanceDiagnostics(dateRange);
+        const raw = await req.metaService.fetchAdRelevanceDiagnostics(dateRange);
         // Group by adGroup for QualityScoreView compatibility
         const grouped = {};
         raw.forEach(ad => {
@@ -197,14 +253,16 @@ app.get('/api/search_terms', async (req, res) => {
     const dateRange = range || 'LAST_30_DAYS';
 
     if (platform === 'Google') {
-        const rawTerms = await googleService.fetchSearchTerms(dateRange);
+        if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
+        const rawTerms = await req.googleService.fetchSearchTerms(dateRange);
         const processed = GoogleEngine.processSearchTerms(rawTerms);
         return res.json(processed);
     }
 
     if (platform === 'Meta') {
+        if (!req.metaService) return res.status(400).json({ error: 'Meta Ads not configured' });
         // Meta equivalent: Placement / Platform breakdown
-        const placements = await metaService.fetchPlacementBreakdown(dateRange);
+        const placements = await req.metaService.fetchPlacementBreakdown(dateRange);
         return res.json(placements);
     }
 
@@ -216,7 +274,8 @@ app.get('/api/creatives', async (req, res) => {
     const dateRange = range || 'LAST_30_DAYS';
 
     if (platform === 'Google') {
-        const rawAds = await googleService.fetchAds(dateRange);
+        if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
+        const rawAds = await req.googleService.fetchAds(dateRange);
         if (rawAds && rawAds.length > 0) {
             const processed = GoogleEngine.processAds(rawAds);
             return res.json(processed);
@@ -266,7 +325,8 @@ app.get('/api/creatives', async (req, res) => {
 app.post('/api/google/ad/status', async (req, res) => {
     const { id, status, note } = req.body;
     try {
-        // If live, we would call googleService.updateAdStatus(id, status);
+        if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
+        // If live, we would call req.googleService.updateAdStatus(id, status);
         // For now, we just log it and return success
         executionLog.unshift({
             id: `log_${Date.now()}`,
@@ -287,7 +347,8 @@ app.post('/api/google/ad/status', async (req, res) => {
 app.post('/api/meta/campaign/status', async (req, res) => {
     const { id, status, note } = req.body;
     try {
-        await metaService.updateCampaignStatus(id, status);
+        if (!req.metaService) return res.status(400).json({ error: 'Meta Ads not configured' });
+        await req.metaService.updateCampaignStatus(id, status);
         executionLog.unshift({
             id: `log_${Date.now()}`,
             timestamp: new Date().toISOString(),
@@ -307,7 +368,8 @@ app.post('/api/meta/campaign/status', async (req, res) => {
 app.post('/api/meta/adset/status', async (req, res) => {
     const { id, status, note } = req.body;
     try {
-        await metaService.updateAdsetStatus(id, status);
+        if (!req.metaService) return res.status(400).json({ error: 'Meta Ads not configured' });
+        await req.metaService.updateAdsetStatus(id, status);
         executionLog.unshift({
             id: `log_${Date.now()}`,
             timestamp: new Date().toISOString(),
@@ -329,8 +391,9 @@ app.get('/api/bidding/analysis', async (req, res) => {
 
     if (platform === 'Google') {
         try {
-            const campaigns = await googleService.fetchCampaigns(dateRange);
-            const adgroups = await googleService.fetchAdGroups(dateRange);
+            if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
+            const campaigns = await req.googleService.fetchCampaigns(dateRange);
+            const adgroups = await req.googleService.fetchAdGroups(dateRange);
             const analysis = GoogleEngine.processBidding(campaigns, adgroups);
             return res.json(analysis);
         } catch (err) {
@@ -340,8 +403,9 @@ app.get('/api/bidding/analysis', async (req, res) => {
     }
 
     if (platform === 'Meta') {
+        if (!req.metaService) return res.status(400).json({ error: 'Meta Ads not configured' });
         // Meta bidding analysis from adsets
-        const adsets = await metaService.fetchAdsets(dateRange);
+        const adsets = await req.metaService.fetchAdsets(dateRange);
         const analysis = adsets.map(as => {
             let recommendation = null;
             if (as.cpl > 1500) recommendation = { action: 'DECREASE_BID', reason: `CPL ₹${as.cpl} is too high. Consider reducing bid.`, urgency: 'HIGH' };
@@ -358,7 +422,8 @@ app.get('/api/bidding/analysis', async (req, res) => {
 app.get('/api/breakdowns', async (req, res) => {
     const { platform, dimension, campaignId, range } = req.query;
     if (platform === 'Google') {
-        const results = await googleService.fetchBreakdowns(dimension, campaignId, range);
+        if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
+        const results = await req.googleService.fetchBreakdowns(dimension, campaignId, range);
         return res.json(results);
     }
 
@@ -414,7 +479,8 @@ app.get('/api/breakdowns', async (req, res) => {
 app.get('/api/recommendations', async (req, res) => {
     const { platform, range } = req.query;
     if (platform === 'Google') {
-        const campaigns = await googleService.fetchCampaigns(range || 'LAST_30_DAYS');
+        if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
+        const campaigns = await req.googleService.fetchCampaigns(range || 'LAST_30_DAYS');
         const recs = GoogleEngine.generateRecommendations(campaigns);
         return res.json(recs);
     }
@@ -424,7 +490,8 @@ app.get('/api/recommendations', async (req, res) => {
 app.get('/api/dashboard/history', async (req, res) => {
     const { platform, range } = req.query;
     if (platform === 'Google') {
-        const history = await googleService.fetchHistoricalMetrics(range);
+        if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
+        const history = await req.googleService.fetchHistoricalMetrics(range);
         return res.json(history);
     }
     res.json([]);
@@ -435,7 +502,8 @@ app.get('/api/execution-log', (req, res) => res.json(executionLog));
 app.post('/api/google/campaign/status', async (req, res) => {
     const { id, status, note } = req.body;
     try {
-        await googleService.updateCampaignStatus(id, status);
+        if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
+        await req.googleService.updateCampaignStatus(id, status);
         executionLog.unshift({
             id: `log_${Date.now()}`,
             timestamp: new Date().toISOString(),
@@ -454,8 +522,9 @@ app.post('/api/google/campaign/status', async (req, res) => {
 app.post('/api/google/campaign/upscale', async (req, res) => {
     const { id, currentBudget, increasePercent = 20, note } = req.body;
     try {
+        if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
         const newBudgetMicros = Math.floor(currentBudget * (1 + increasePercent / 100) * 1000000);
-        await googleService.updateCampaignBudget(id, newBudgetMicros);
+        await req.googleService.updateCampaignBudget(id, newBudgetMicros);
 
         executionLog.unshift({
             id: `log_${Date.now()}`,
@@ -476,8 +545,9 @@ app.post('/api/google/campaign/upscale', async (req, res) => {
 app.post('/api/google/campaign/downscale', async (req, res) => {
     const { id, currentBudget, decreasePercent = 20, note } = req.body;
     try {
+        if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
         const newBudgetMicros = Math.floor(currentBudget * (1 - decreasePercent / 100) * 1000000);
-        await googleService.updateCampaignBudget(id, newBudgetMicros);
+        await req.googleService.updateCampaignBudget(id, newBudgetMicros);
 
         executionLog.unshift({
             id: `log_${Date.now()}`,
