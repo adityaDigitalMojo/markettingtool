@@ -1,3 +1,5 @@
+const axios = require('axios');
+
 class MetaAdsService {
     constructor(credentials) {
         this.accessToken = credentials.accessToken;

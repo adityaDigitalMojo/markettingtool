@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
-const csv = require('csv-parser');
 const dotenv = require('dotenv');
 
 dotenv.config();
@@ -61,10 +60,6 @@ const PORT = process.env.PORT || 8000;
 
 // Execution Log Store (In-memory for now)
 let executionLog = [];
-
-const getClientDataPath = (clientId, platform) => {
-    return path.join(__dirname, `../data/${clientId}_${platform.toLowerCase()}.csv`);
-};
 
 // Client Management Routes
 app.get('/api/clients', clientController.getClients);
@@ -140,6 +135,7 @@ app.get('/api/dashboard', async (req, res) => {
         try {
             if (!req.metaService) return res.status(400).json({ error: 'Meta Ads not configured for this client' });
             const metaDash = await req.metaService.fetchDashboard(dateRange);
+
             if (metaDash) {
                 const alerts = [];
                 if (metaDash.cpl > 1500) alerts.push({ type: 'HIGH_CPL', message: `CPL of ₹${metaDash.cpl} is above threshold` });
@@ -156,6 +152,17 @@ app.get('/api/dashboard', async (req, res) => {
                         active_alerts: alerts.length,
                         pacing: 0,
                         alerts
+                    },
+                    adsets_summary: { total: 0, winners: 0, watch: 0, underperformers: 0 }
+                });
+            } else {
+                // Fallback if no data found or API error
+                return res.json({
+                    client: clientName, location: clientLocation, platform,
+                    metrics: {
+                        leads: 0, leads_delta: 0, spend: 0, spend_delta: 0,
+                        cpl: 0, cpl_delta: 0, ctr: 0, ctr_delta: 0,
+                        cpm: 0, cpc: 0, reach: 0, active_alerts: 0, pacing: 0, alerts: []
                     },
                     adsets_summary: { total: 0, winners: 0, watch: 0, underperformers: 0 }
                 });

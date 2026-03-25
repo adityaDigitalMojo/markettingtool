@@ -1,3 +1,5 @@
+const { GoogleAdsApi } = require('google-ads-api');
+
 class GoogleAdsService {
     constructor(credentials) {
         this.client = null;
