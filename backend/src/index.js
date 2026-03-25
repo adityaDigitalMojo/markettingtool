@@ -19,7 +19,9 @@ app.use(express.json());
 
 // Middleware to inject client-specific services
 const withPlatformService = async (req, res, next) => {
-    const clientId = req.query.clientId || req.body.clientId || req.headers['x-client-id'];
+    const clientId = (req.query && req.query.clientId) ||
+        (req.body && req.body.clientId) ||
+        (req.headers && req.headers['x-client-id']);
 
     if (!clientId) {
         // Allow client management routes to pass through without clientId
