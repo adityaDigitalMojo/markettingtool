@@ -7,8 +7,15 @@ import {
     ChevronDown,
     History,
     ShieldAlert,
-    Megaphone
+    Megaphone,
+    BrainCircuit,
+    Zap,
+    Fingerprint,
+    Search,
+    BarChart,
+    PieChart as PieIcon
 } from 'lucide-react';
+
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import axios from 'axios';
 import AlertsModal from './AlertsModal';
@@ -32,18 +39,25 @@ const MetricCard = ({ title, value, delta, icon: Icon }) => (
 
 const DashboardView = ({ data, campaigns, platform, clientId, clients, syncData, range, onCampaignClick, onAction, setView }) => {
     const [history, setHistory] = React.useState([]);
+    const [execLogs, setExecLogs] = React.useState([]);
     const [isAlertsModalOpen, setIsAlertsModalOpen] = React.useState(false);
+
 
     React.useEffect(() => {
         const fetchHistory = async () => {
             try {
-                const res = await axios.get(`${API_BASE}/api/dashboard/history?platform=${platform}&range=${range}&clientId=${clientId}`);
-                setHistory(res.data);
+                const [histRes, logRes] = await Promise.all([
+                    axios.get(`${API_BASE}/api/dashboard/history?platform=${platform}&range=${range}&clientId=${clientId}`),
+                    axios.get(`${API_BASE}/api/execution-log?clientId=${clientId}`)
+                ]);
+                setHistory(histRes.data);
+                setExecLogs(logRes.data);
             } catch (err) {
-                console.error("Error fetching history:", err);
+                console.error("Error fetching dashboard extra data:", err);
             }
         };
-        if (platform === 'Google' && clientId) fetchHistory();
+        if (clientId) fetchHistory();
+
     }, [platform, range, clientId]);
 
     if (!data) return <div className="flex animate-pulse items-center justify-center h-64 text-text-muted">Loading dashboard...</div>;
@@ -198,42 +212,63 @@ const DashboardView = ({ data, campaigns, platform, clientId, clients, syncData,
                     </div>
                 </div>
 
-                <div className="card h-full">
-                    <h2 className="text-xl font-bold mb-6">Spend Split</h2>
-                    <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={[
-                                        { name: 'Search', value: 39 },
-                                        { name: 'Demand Gen', value: 61 }
-                                    ]}
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                >
-                                    <Cell fill="#eab308" />
-                                    <Cell fill="#27272a" />
-                                </Pie>
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '8px' }}
-                                />
-                            </PieChart>
-                        </ResponsiveContainer>
+                <div className="card h-full flex flex-col">
+                    <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-xl font-bold flex items-center gap-2">
+                            <BrainCircuit size={20} className="text-primary" />
+                            Learning Engine
+                        </h2>
+                        <div className="px-2 py-1 bg-primary/10 text-primary text-[8px] font-black uppercase tracking-widest rounded">Beta</div>
                     </div>
-                    <div className="flex flex-col gap-2 mt-4">
-                        <div className="flex justify-between items-center text-xs">
-                            <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-primary"></div> Search</span>
-                            <span className="font-bold">39%</span>
+                    
+                    <div className="space-y-6 flex-1">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="p-4 bg-white/2 rounded-2xl border border-white/5">
+                                <div className="text-[10px] text-text-muted font-bold uppercase tracking-widest mb-1">Success Rate</div>
+                                <div className="text-2xl font-black text-white">
+                                    {execLogs.length > 0 ? (execLogs.filter(l => l.finalOutcome === 'POSITIVE').length / execLogs.length * 100).toFixed(0) : 0}%
+                                </div>
+                            </div>
+                            <div className="p-4 bg-white/2 rounded-2xl border border-white/5">
+                                <div className="text-[10px] text-text-muted font-bold uppercase tracking-widest mb-1">Daily Log</div>
+                                <div className="text-2xl font-black text-white">{execLogs.length}</div>
+                            </div>
                         </div>
-                        <div className="flex justify-between items-center text-xs">
-                            <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-white/10"></div> Demand Gen</span>
-                            <span className="font-bold">61%</span>
+
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                                <span>Action Classifications</span>
+                                <span className="text-primary">Live Tracking</span>
+                            </div>
+                            <div className="space-y-2">
+                                {[
+                                    { label: 'Auto-executable', count: execLogs.filter(l => l.actionTier === 'AUTO').length, icon: Zap, color: 'text-primary' },
+                                    { label: 'Consent-bound', count: execLogs.filter(l => l.actionTier === 'CONSENT').length, icon: Fingerprint, color: 'text-success' },
+                                    { label: 'Manual-override', count: execLogs.filter(l => l.actionTier === 'MANUAL').length, icon: Search, color: 'text-danger' }
+                                ].map((tier, i) => (
+                                    <div key={i} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5 group hover:border-primary/30 transition-all">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-1.5 rounded-lg bg-white/5 ${tier.color}`}>
+                                                <tier.icon size={14} />
+                                            </div>
+                                            <span className="text-xs font-bold text-text-muted">{tier.label}</span>
+                                        </div>
+                                        <span className="text-xs font-black">{tier.count}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
+
+                    <button 
+                        onClick={() => setView('exec_log')}
+                        className="mt-6 w-full py-3 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/5"
+                    >
+                        View Strategic Audit Log
+                    </button>
                 </div>
             </div>
+
             <AlertsModal
                 isOpen={isAlertsModalOpen}
                 onClose={() => setIsAlertsModalOpen(false)}

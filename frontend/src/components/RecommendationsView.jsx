@@ -1,9 +1,29 @@
-import React from 'react';
-import { Lightbulb, ChevronDown, CheckCircle2, AlertCircle, Play } from 'lucide-react';
+import { Lightbulb, ChevronDown, CheckCircle2, AlertCircle, Play, Zap, ShieldCheck, User } from 'lucide-react';
+import StrategicCallDialog from './StrategicCallDialog';
+
 
 const RecommendationsView = ({ recs, handleAction, platform, onCampaignClick, campaigns }) => {
+    const [selectedRec, setSelectedRec] = React.useState(null);
+    const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+
+    const onApproveClick = (rec) => {
+        setSelectedRec(rec);
+        setIsDialogOpen(true);
+    };
+
+    const onConfirmAction = (rationale) => {
+        handleAction(selectedRec.id, 'EXECUTE', { note: rationale });
+    };
+
     return (
         <div className="flex flex-col gap-8">
+            <StrategicCallDialog
+                isOpen={isDialogOpen}
+                onClose={() => setIsDialogOpen(false)}
+                onConfirm={onConfirmAction}
+                actionData={selectedRec}
+            />
+
             <header>
                 <h1 className="text-2xl font-bold">Smart Recommendations</h1>
                 <p className="text-text-muted">AI-driven optimizations for your {platform} Ads performance.</p>
@@ -16,11 +36,13 @@ const RecommendationsView = ({ recs, handleAction, platform, onCampaignClick, ca
                             <span className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
                                 ICE Score: {r.ice || '8.0'}
                             </span>
-                            <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${r.priority === 'IMMEDIATE' ? 'bg-danger/20 text-danger' : 'bg-primary/20 text-primary'
+                            <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase flex items-center gap-1 ${r.tier === 'AUTO' ? 'bg-success/20 text-success' : r.tier === 'MANUAL' ? 'bg-danger/20 text-danger' : 'bg-primary/20 text-primary'
                                 }`}>
-                                {r.priority || 'NORMAL'}
+                                {r.tier === 'AUTO' ? <Zap size={10} fill="currentColor" /> : r.tier === 'MANUAL' ? <User size={10} /> : <ShieldCheck size={10} />}
+                                {r.tier || 'CONSENT'}
                             </div>
                         </div>
+
                         <h3 className="font-bold text-lg mb-2">{r.title}</h3>
                         <p className="text-sm text-text-muted mb-6 flex-1">{r.desc || r.description}</p>
 
@@ -33,12 +55,13 @@ const RecommendationsView = ({ recs, handleAction, platform, onCampaignClick, ca
                                 <>
                                     {r.isActionable !== false && (
                                         <button
-                                            onClick={() => handleAction(r.id, 'EXECUTE')}
-                                            className="flex-[2] bg-primary text-background text-[10px] font-black py-3 rounded-xl hover:opacity-90 transition-all uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(234,179,8,0.2)]"
+                                            onClick={() => onApproveClick(r)}
+                                            className="flex-[2] bg-primary text-background text-[10px] font-black py-4 rounded-2xl hover:opacity-90 transition-all uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(234,179,8,0.2)]"
                                         >
-                                            <Play size={14} fill="currentColor" /> Approve & Execute
+                                            <Play size={14} fill="currentColor" /> Strategic Execution
                                         </button>
                                     )}
+
                                     <button
                                         onClick={() => {
                                             const targetId = r.targetId || r.campaignId;

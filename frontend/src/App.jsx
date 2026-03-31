@@ -24,7 +24,8 @@ import ExecutionLog from './components/ExecutionLog';
 import SettingsPage from './components/Settings';
 import BenchmarksView from './components/BenchmarksView';
 import CampaignDetailModal from './components/CampaignDetailModal';
-import ActionNoteModal from './components/ActionNoteModal';
+import StrategicCallDialog from './components/StrategicCallDialog';
+
 import AdCopyView from './components/AdCopyView';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -103,11 +104,12 @@ function App() {
   };
 
   const handleAction = async (type, campaign, note = null) => {
-    if (!note) {
+    if (!note || typeof note === 'object') {
       setPendingAction({ type, campaign });
       setIsNoteModalOpen(true);
       return;
     }
+
 
     try {
       let endpoint;
@@ -167,7 +169,9 @@ function App() {
   const renderContent = () => {
     switch (view) {
       case 'dashboard':
+      case 'perf_hub':
         return <DashboardView data={data} campaigns={campaigns} platform={platform} clientId={clientId} clients={clients} syncData={syncData} range={range} onCampaignClick={onCampaignClick} onAction={handleAction} setView={setView} />;
+
       case 'campaigns':
         return <CampaignsView campaigns={campaigns} alerts={data?.metrics?.alerts || []} platform={platform} onCampaignClick={onCampaignClick} onAction={handleAction} />;
       case 'bidding':
@@ -260,16 +264,20 @@ function App() {
           onAction={handleAction}
         />
 
-        <ActionNoteModal
+        <StrategicCallDialog
           isOpen={isNoteModalOpen}
           onClose={() => setIsNoteModalOpen(false)}
-          onConfirm={(note) => {
-            handleAction(pendingAction.type, pendingAction.campaign, note);
+          recommendation={pendingAction ? {
+            action: pendingAction.type,
+            recommendation: `Strategic manual adjustment for ${pendingAction.campaign?.name || 'entity'}`,
+            impact: "Manual optimization based on operator discretion."
+          } : null}
+          onExecute={(rationale) => {
+            handleAction(pendingAction.type, pendingAction.campaign, rationale);
             setIsNoteModalOpen(false);
           }}
-          actionType={pendingAction?.type || ''}
-          campaignName={pendingAction?.campaign?.name || ''}
         />
+
       </main>
     </div>
   );

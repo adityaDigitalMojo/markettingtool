@@ -11,8 +11,17 @@ const GoogleAdsService = require('./google_service');
 const GoogleEngine = require('./google_engine');
 const MetaAdsService = require('./meta_service');
 const clientController = require('./controllers/clientController');
+const executionLearning = require('./execution-learning');
+
+
+// Learning Engine background worker - check every hour
+setInterval(() => {
+    console.log("[Learning Engine] Checking for performance outcomes...");
+    executionLearning.updateOutcomes().catch(err => console.error("[Learning Engine] Update error:", err));
+}, 60 * 60 * 1000);
 
 const app = express();
+
 app.use(cors({
     origin: ['https://markettingtool.vercel.app', 'http://localhost:5173'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -83,8 +92,9 @@ app.use(withPlatformService);
 
 const PORT = process.env.PORT || 8000;
 
-// Execution Log Store (In-memory for now)
+// Execution Log Store (Legacy in-memory)
 let executionLog = [];
+
 
 // Client Management Routes
 app.get('/api/clients', clientController.getClients);
@@ -440,20 +450,23 @@ app.post('/api/google/ad/status', async (req, res) => {
         if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
         // If live, we would call req.googleService.updateAdStatus(id, status);
         // For now, we just log it and return success
-        executionLog.unshift({
-            id: `log_${Date.now()}`,
-            timestamp: new Date().toISOString(),
-            action: 'AD_STATUS_CHANGE',
-            entity: id,
-            status: 'SUCCESS',
-            details: `Changed ad status to ${status}`,
-            note: note || 'Creative optimization'
+        // Injected: Captured execution metadata
+        await executionLearning.recordExecution({
+            clientId: req.clientData.id,
+            platform: 'Google',
+            entityId: id,
+            entityType: 'AD',
+            action: 'STATUS_CHANGE',
+            rationale: note || 'Creative optimization',
+            beforeMetrics: req.body.beforeMetrics || {}
         });
+
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
+
 
 // Meta campaign status control
 app.post('/api/meta/campaign/status', async (req, res) => {
@@ -461,20 +474,22 @@ app.post('/api/meta/campaign/status', async (req, res) => {
     try {
         if (!req.metaService) return res.status(400).json({ error: 'Meta Ads not configured' });
         await req.metaService.updateCampaignStatus(id, status);
-        executionLog.unshift({
-            id: `log_${Date.now()}`,
-            timestamp: new Date().toISOString(),
-            action: 'META_CAMPAIGN_STATUS_CHANGE',
-            entity: id,
-            status: 'SUCCESS',
-            details: `Changed Meta campaign status to ${status}`,
-            note: note || 'Campaign optimization'
+        await executionLearning.recordExecution({
+            clientId: req.clientData.id,
+            platform: 'Meta',
+            entityId: id,
+            entityType: 'CAMPAIGN',
+            action: 'STATUS_CHANGE',
+            rationale: note || 'Campaign optimization',
+            beforeMetrics: req.body.beforeMetrics || {}
         });
+
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
+
 
 // Meta adset status control
 app.post('/api/meta/adset/status', async (req, res) => {
@@ -482,20 +497,22 @@ app.post('/api/meta/adset/status', async (req, res) => {
     try {
         if (!req.metaService) return res.status(400).json({ error: 'Meta Ads not configured' });
         await req.metaService.updateAdsetStatus(id, status);
-        executionLog.unshift({
-            id: `log_${Date.now()}`,
-            timestamp: new Date().toISOString(),
-            action: 'META_ADSET_STATUS_CHANGE',
-            entity: id,
-            status: 'SUCCESS',
-            details: `Changed Meta ad set status to ${status}`,
-            note: note || 'Ad set optimization'
+        await executionLearning.recordExecution({
+            clientId: req.clientData.id,
+            platform: 'Meta',
+            entityId: id,
+            entityType: 'ADSET',
+            action: 'STATUS_CHANGE',
+            rationale: note || 'Ad set optimization',
+            beforeMetrics: req.body.beforeMetrics || {}
         });
+
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
+
 
 app.get('/api/bidding/analysis', async (req, res) => {
     const { platform, range } = req.query;
@@ -636,27 +653,37 @@ app.get('/api/dashboard/history', async (req, res) => {
     res.json([]);
 });
 
-app.get('/api/execution-log', (req, res) => res.json(executionLog));
+app.get('/api/execution-log', async (req, res) => {
+    try {
+        const logs = await executionLearning.getExecutionLogs(req.clientData.id);
+        res.json(logs);
+    } catch (err) {
+        res.json(executionLog); // Fallback to memory
+    }
+});
+
 
 app.post('/api/google/campaign/status', async (req, res) => {
     const { id, status, note } = req.body;
     try {
         if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
         await req.googleService.updateCampaignStatus(id, status);
-        executionLog.unshift({
-            id: `log_${Date.now()}`,
-            timestamp: new Date().toISOString(),
+        await executionLearning.recordExecution({
+            clientId: req.clientData.id,
+            platform: 'Google',
+            entityId: id,
+            entityType: 'CAMPAIGN',
             action: 'STATUS_CHANGE',
-            entity: id,
-            status: 'SUCCESS',
-            details: `Changed status to ${status}`,
-            note: note || 'No reason provided'
+            rationale: note || 'No reason provided',
+            beforeMetrics: req.body.beforeMetrics || {}
         });
+
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
+
 
 app.post('/api/google/campaign/upscale', async (req, res) => {
     const { id, currentBudget, increasePercent = 20, note } = req.body;
@@ -665,14 +692,14 @@ app.post('/api/google/campaign/upscale', async (req, res) => {
         const newBudgetMicros = Math.floor(currentBudget * (1 + increasePercent / 100) * 1000000);
         await req.googleService.updateCampaignBudget(id, newBudgetMicros);
 
-        executionLog.unshift({
-            id: `log_${Date.now()}`,
-            timestamp: new Date().toISOString(),
+        await executionLearning.recordExecution({
+            clientId: req.clientData.id,
+            platform: 'Google',
+            entityId: id,
+            entityType: 'CAMPAIGN',
             action: 'UPSCALE',
-            entity: id,
-            status: 'SUCCESS',
-            details: `Increased budget by ${increasePercent}%`,
-            note: note || 'No reason provided'
+            rationale: note || 'No reason provided',
+            beforeMetrics: req.body.beforeMetrics || {}
         });
 
         res.json({ success: true, newBudget: currentBudget * (1 + increasePercent / 100) });
@@ -681,6 +708,7 @@ app.post('/api/google/campaign/upscale', async (req, res) => {
     }
 });
 
+
 app.post('/api/google/campaign/downscale', async (req, res) => {
     const { id, currentBudget, decreasePercent = 20, note } = req.body;
     try {
@@ -688,14 +716,14 @@ app.post('/api/google/campaign/downscale', async (req, res) => {
         const newBudgetMicros = Math.floor(currentBudget * (1 - decreasePercent / 100) * 1000000);
         await req.googleService.updateCampaignBudget(id, newBudgetMicros);
 
-        executionLog.unshift({
-            id: `log_${Date.now()}`,
-            timestamp: new Date().toISOString(),
+        await executionLearning.recordExecution({
+            clientId: req.clientData.id,
+            platform: 'Google',
+            entityId: id,
+            entityType: 'DOWNSCALE',
             action: 'DOWNSCALE',
-            entity: id,
-            status: 'SUCCESS',
-            details: `Decreased budget by ${decreasePercent}%`,
-            note: note || 'No reason provided'
+            rationale: note || 'No reason provided',
+            beforeMetrics: req.body.beforeMetrics || {}
         });
 
         res.json({ success: true, newBudget: currentBudget * (1 - decreasePercent / 100) });
@@ -703,6 +731,7 @@ app.post('/api/google/campaign/downscale', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
 
 app.listen(PORT, () => {
     console.log(`Backend running at http://localhost:${PORT}`);
