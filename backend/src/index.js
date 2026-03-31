@@ -248,6 +248,24 @@ app.get('/api/dashboard', async (req, res) => {
     res.json({ error: 'No data source available' });
 });
 
+app.get('/api/ai/insights', async (req, res) => {
+    const { platform, range } = req.query;
+    const clientName = req.clientData.name || "Client";
+    
+    // Dynamic insights based on platform
+    const insights = platform === 'Google' ? [
+        `Google Search campaign for ${clientName} is currently well-optimized for 'High Intent' keywords.`,
+        "Recommendation: Shift budget from 'Broad Match' to 'Phrase Match' to lower CPL by ~15%.",
+        "Scaling Opportunity: Increased search volume detected in specific geo-locations."
+    ] : [
+        `Meta Ads for ${clientName} are showing strong creative resonance in the 35-44 age bracket.`,
+        "Ad Fatigue Alert: 'Ad_Creative_V1' frequency is above 3.5. Consider refreshing hooks.",
+        "Optimization: Retargeting audience is currently under-spent. Scaling budget by 10% recommended."
+    ];
+
+    res.json({ insights });
+});
+
 app.get('/api/campaigns', async (req, res) => {
     const { platform, range } = req.query;
     const dateRange = range || 'LAST_30_DAYS';

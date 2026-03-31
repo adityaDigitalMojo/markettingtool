@@ -1,10 +1,11 @@
+import React, { useState } from 'react';
 import { Lightbulb, ChevronDown, CheckCircle2, AlertCircle, Play, Zap, ShieldCheck, User } from 'lucide-react';
 import StrategicCallDialog from './StrategicCallDialog';
 
 
 const RecommendationsView = ({ recs, handleAction, platform, onCampaignClick, campaigns }) => {
-    const [selectedRec, setSelectedRec] = React.useState(null);
-    const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+    const [selectedRec, setSelectedRec] = useState(null);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
 
     const onApproveClick = (rec) => {
         setSelectedRec(rec);
@@ -30,7 +31,7 @@ const RecommendationsView = ({ recs, handleAction, platform, onCampaignClick, ca
             </header>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {recs.map(r => (
+                {Array.isArray(recs) && recs.map(r => (
                     <div key={r.id} className={`card flex flex-col h-full ${r.priority === 'IMMEDIATE' ? 'border-l-4 border-l-danger bg-danger/5 shadow-[0_0_20px_rgba(239,68,68,0.05)]' : 'border-l-4 border-l-primary'}`}>
                         <div className="flex justify-between items-start mb-4">
                             <span className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">

@@ -1,6 +1,33 @@
 const { GoogleAdsApi } = require('google-ads-api');
 
 class GoogleAdsService {
+    _resolveDateRange(range) {
+        const today = new Date();
+        const formatDate = (date) => date.toISOString().split('T')[0].split('-').join('');
+        
+        const presets = {
+            'LAST_7_DAYS': 'LAST_7_DAYS',
+            'LAST_30_DAYS': 'LAST_30_DAYS',
+            'ALL_TIME': 'ALL_TIME'
+        };
+
+        if (presets[range]) return presets[range];
+
+        let startDate = new Date();
+        if (range === 'LAST_90_DAYS' || range === '3m') {
+            startDate.setDate(today.getDate() - 90);
+        } else if (range === '7D') {
+            return 'LAST_7_DAYS';
+        } else if (range === '30D') {
+            return 'LAST_30_DAYS';
+        } else {
+            // Default fallback
+            return 'LAST_30_DAYS';
+        }
+
+        return `${formatDate(startDate)},${formatDate(today)}`;
+    }
+
     constructor(credentials) {
         this.client = null;
         this.customer = null;
@@ -79,7 +106,8 @@ class GoogleAdsService {
     async fetchCampaigns(range = 'LAST_30_DAYS') {
         if (!this.customer) return [];
         try {
-            console.log(`[GoogleAdsService] Fetching campaigns for range: ${range}`);
+            const resolvedRange = this._resolveDateRange(range);
+            console.log(`[GoogleAdsService] Fetching campaigns for resolved range: ${resolvedRange}`);
             const campaigns = await this.customer.report({
                 entity: 'campaign',
                 attributes: [
@@ -97,7 +125,7 @@ class GoogleAdsService {
                     'campaign.primary_status',
                     'campaign.primary_status_reasons'
                 ],
-                date_range: range,
+                date_range: resolvedRange,
                 limit: 100,
             });
 
@@ -141,6 +169,7 @@ class GoogleAdsService {
     async fetchAdGroups(range = 'LAST_30_DAYS') {
         if (!this.customer) return [];
         try {
+            const resolvedRange = this._resolveDateRange(range);
             const adgroups = await this.customer.report({
                 entity: 'ad_group',
                 attributes: [
@@ -158,7 +187,7 @@ class GoogleAdsService {
                     'metrics.impressions',
                     'metrics.clicks'
                 ],
-                date_range: range === 'ALL_TIME' ? '20240101,' + new Date().toISOString().split('T')[0].replace(/-/g, '') : range,
+                date_range: resolvedRange,
                 limit: 200,
             });
 
@@ -199,6 +228,7 @@ class GoogleAdsService {
     async fetchAds(range = 'LAST_30_DAYS') {
         if (!this.customer) return [];
         try {
+            const resolvedRange = this._resolveDateRange(range);
             const ads = await this.customer.report({
                 entity: 'ad_group_ad',
                 attributes: [
@@ -215,7 +245,7 @@ class GoogleAdsService {
                     'metrics.impressions',
                     'metrics.clicks'
                 ],
-                date_range: range === 'ALL_TIME' ? '20240101,' + new Date().toISOString().split('T')[0].replace(/-/g, '') : range,
+                date_range: resolvedRange,
                 limit: 100,
             });
 
@@ -269,7 +299,7 @@ class GoogleAdsService {
                     metrics.impressions, 
                     metrics.clicks 
                 FROM keyword_view 
-                WHERE segments.date DURING ${range.replace(/_/g, '_')}
+                WHERE ${resolvedRange.includes(',') ? `segments.date BETWEEN '${resolvedRange.split(',')[0].slice(0,4)}-${resolvedRange.split(',')[0].slice(4,6)}-${resolvedRange.split(',')[0].slice(6,8)}' AND '${resolvedRange.split(',')[1].slice(0,4)}-${resolvedRange.split(',')[1].slice(4,6)}-${resolvedRange.split(',')[1].slice(6,8)}'` : `segments.date DURING ${resolvedRange}`}
             `);
 
             const metricsMap = {};
@@ -308,11 +338,12 @@ class GoogleAdsService {
         if (!this.customer) return [];
         try {
             let dateClause;
-            if (range === 'ALL_TIME') {
-                const endDate = new Date().toISOString().split('T')[0];
-                dateClause = `segments.date BETWEEN '2024-01-01' AND '${endDate}'`;
+            const resolvedRange = this._resolveDateRange(range);
+            if (resolvedRange.includes(',')) {
+                const [start, end] = resolvedRange.split(',');
+                dateClause = `segments.date BETWEEN '${start.slice(0,4)}-${start.slice(4,6)}-${start.slice(6,8)}' AND '${end.slice(0,4)}-${end.slice(4,6)}-${end.slice(6,8)}'`;
             } else {
-                dateClause = `segments.date DURING ${range}`;
+                dateClause = `segments.date DURING ${resolvedRange}`;
             }
             const campaignClause = campaignId ? ` AND campaign.id = ${campaignId}` : '';
 
@@ -453,7 +484,7 @@ class GoogleAdsService {
                     metrics.clicks, 
                     metrics.ctr
                 FROM search_term_view 
-                WHERE segments.date DURING ${dateRange.replace(/-/g, '')}
+                WHERE ${resolvedRange.includes(',') ? `segments.date BETWEEN '${resolvedRange.split(',')[0].slice(0,4)}-${resolvedRange.split(',')[0].slice(4,6)}-${resolvedRange.split(',')[0].slice(6,8)}' AND '${resolvedRange.split(',')[1].slice(0,4)}-${resolvedRange.split(',')[1].slice(4,6)}-${resolvedRange.split(',')[1].slice(6,8)}'` : `segments.date DURING ${resolvedRange}`}
                 LIMIT 500
             `);
 
