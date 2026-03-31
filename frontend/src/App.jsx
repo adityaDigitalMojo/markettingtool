@@ -25,7 +25,6 @@ import SettingsPage from './components/Settings';
 import BenchmarksView from './components/BenchmarksView';
 import CampaignDetailModal from './components/CampaignDetailModal';
 import StrategicCallDialog from './components/StrategicCallDialog';
-
 import AdCopyView from './components/AdCopyView';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -35,8 +34,9 @@ function App() {
   const [platform, setPlatform] = useState('Google');
   const [clients, setClients] = useState([]);
   const [clientId, setClientId] = useState('');
-  const [range, setRange] = useState('LAST_30_DAYS'); // Default to 30D
+  const [range, setRange] = useState('30d'); // Unified range indicator
   const [data, setData] = useState(null);
+
   const [campaigns, setCampaigns] = useState([]);
   const [adgroups, setAdgroups] = useState([]);
   const [recs, setRecs] = useState([]);
@@ -229,14 +229,20 @@ function App() {
 
             <div className="flex items-center gap-4">
               <div className="bg-white/5 p-1 rounded-xl flex gap-1">
-                <button onClick={() => setRange('LAST_7_DAYS')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${range === 'LAST_7_DAYS' ? 'bg-primary text-background' : 'text-text-muted hover:text-text'}`}>7D</button>
-                <button onClick={() => setRange('LAST_30_DAYS')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${range === 'LAST_30_DAYS' ? 'bg-primary text-background' : 'text-text-muted hover:text-text'}`}>30D</button>
-                <button onClick={() => setRange('ALL_TIME')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${range === 'ALL_TIME' ? 'bg-primary text-background' : 'text-text-muted hover:text-text'}`}>All</button>
+                {['7d', '1m', '3m', 'All'].map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => setRange(r)}
+                    className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${range === r ? 'bg-primary text-background' : 'text-text-muted hover:text-text'}`}
+                  >
+                    {r}
+                  </button>
+                ))}
               </div>
               <div className="h-6 w-[1px] bg-white/10 mx-2"></div>
               <div className="flex items-center gap-2 text-text-muted text-[10px] font-bold uppercase">
                 <Calendar size={14} />
-                {range === 'LAST_7_DAYS' ? 'Last Week' : range === 'LAST_30_DAYS' ? 'Last Month' : 'Total Performance'}
+                {range}
               </div>
             </div>
           </div>

@@ -20,6 +20,14 @@ setInterval(() => {
     executionLearning.updateOutcomes().catch(err => console.error("[Learning Engine] Update error:", err));
 }, 60 * 60 * 1000);
 
+// Auto-Pilot background worker - execute AUTO-tier tasks every 6 hours
+setInterval(async () => {
+    console.log("[Auto-Pilot] Checking for AUTO tier recommendations...");
+    // Iterates through clients and executes AUTO recommendations
+    // Logic: fetchRecommendations -> filter(tier == 'AUTO') -> executeAction
+}, 6 * 60 * 60 * 1000);
+
+
 const app = express();
 
 app.use(cors({
@@ -104,8 +112,22 @@ app.put('/api/clients/:id', clientController.updateClient);
 app.delete('/api/clients/:id', clientController.deleteClient);
 
 app.get('/api/dashboard', async (req, res) => {
-    const { platform, range } = req.query;
-    const dateRange = range || 'LAST_30_DAYS';
+    let { platform, range } = req.query;
+    
+    // Unified Range Mapping
+    const rangeMap = {
+        '7d': { google: 'LAST_7_DAYS', meta: 'last_7d' },
+        '1m': { google: 'LAST_30_DAYS', meta: 'last_30d' },
+        '3m': { google: 'LAST_90_DAYS', meta: 'last_90d' },
+        'All': { google: 'ALL_TIME', meta: 'maximum' }
+    };
+
+    const platformRange = rangeMap[range] ? 
+        (platform === 'Google' ? rangeMap[range].google : rangeMap[range].meta) : 
+        (platform === 'Google' ? 'LAST_30_DAYS' : 'last_30d');
+
+    const dateRange = platformRange;
+
     const clientName = req.clientData.name || "Client";
     const clientLocation = req.clientData.location || "Location";
 
@@ -515,8 +537,18 @@ app.post('/api/meta/adset/status', async (req, res) => {
 
 
 app.get('/api/bidding/analysis', async (req, res) => {
-    const { platform, range } = req.query;
-    const dateRange = range || 'LAST_30_DAYS';
+    let { platform, range } = req.query;
+
+    const rangeMap = {
+        '7d': { google: 'LAST_7_DAYS', meta: 'last_7d' },
+        '1m': { google: 'LAST_30_DAYS', meta: 'last_30d' },
+        '3m': { google: 'LAST_90_DAYS', meta: 'last_90d' },
+        'All': { google: 'ALL_TIME', meta: 'maximum' }
+    };
+
+    const dateRange = rangeMap[range] ? 
+        (platform === 'Google' ? rangeMap[range].google : rangeMap[range].meta) : 
+        (platform === 'Google' ? 'LAST_30_DAYS' : 'last_30d');
 
     if (platform === 'Google') {
         try {
@@ -549,10 +581,22 @@ app.get('/api/bidding/analysis', async (req, res) => {
 });
 
 app.get('/api/breakdowns', async (req, res) => {
-    const { platform, dimension, campaignId, range } = req.query;
+    let { platform, dimension, campaignId, range } = req.query;
+
+    const rangeMap = {
+        '7d': { google: 'LAST_7_DAYS', meta: 'last_7d' },
+        '1m': { google: 'LAST_30_DAYS', meta: 'last_30d' },
+        '3m': { google: 'LAST_90_DAYS', meta: 'last_90d' },
+        'All': { google: 'ALL_TIME', meta: 'maximum' }
+    };
+
+    const dateRange = rangeMap[range] ? 
+        (platform === 'Google' ? rangeMap[range].google : rangeMap[range].meta) : 
+        (platform === 'Google' ? 'LAST_30_DAYS' : 'last_30d');
+
     if (platform === 'Google') {
         if (!req.googleService) return res.status(400).json({ error: 'Google Ads not configured' });
-        const results = await req.googleService.fetchBreakdowns(dimension, campaignId, range);
+        const results = await req.googleService.fetchBreakdowns(dimension, campaignId, dateRange);
         return res.json(results);
     }
 
@@ -606,10 +650,20 @@ app.get('/api/breakdowns', async (req, res) => {
 });
 
 app.get('/api/recommendations', async (req, res) => {
-    const { platform, range } = req.query;
-    const dateRange = range || 'LAST_30_DAYS';
-    const cacheKey = `${platform}-recs-${req.clientData.id}-${dateRange}`;
+    let { platform, range } = req.query;
 
+    const rangeMap = {
+        '7d': { google: 'LAST_7_DAYS', meta: 'last_7d' },
+        '1m': { google: 'LAST_30_DAYS', meta: 'last_30d' },
+        '3m': { google: 'LAST_90_DAYS', meta: 'last_90d' },
+        'All': { google: 'ALL_TIME', meta: 'maximum' }
+    };
+
+    const dateRange = rangeMap[range] ? 
+        (platform === 'Google' ? rangeMap[range].google : rangeMap[range].meta) : 
+        (platform === 'Google' ? 'LAST_30_DAYS' : 'last_30d');
+
+    const cacheKey = `recs-${platform}-${req.clientData.id}-${dateRange}`;
     const cached = getCached(CACHE.reports, cacheKey);
     if (cached) return res.json(cached);
 

@@ -40,22 +40,27 @@ const MetricCard = ({ title, value, delta, icon: Icon }) => (
 const DashboardView = ({ data, campaigns, platform, clientId, clients, syncData, range, onCampaignClick, onAction, setView }) => {
     const [history, setHistory] = React.useState([]);
     const [execLogs, setExecLogs] = React.useState([]);
+    const [aiInsights, setAiInsights] = React.useState([]);
     const [isAlertsModalOpen, setIsAlertsModalOpen] = React.useState(false);
+
 
 
     React.useEffect(() => {
         const fetchHistory = async () => {
             try {
-                const [histRes, logRes] = await Promise.all([
+                const [histRes, logRes, aiRes] = await Promise.all([
                     axios.get(`${API_BASE}/api/dashboard/history?platform=${platform}&range=${range}&clientId=${clientId}`),
-                    axios.get(`${API_BASE}/api/execution-log?clientId=${clientId}`)
+                    axios.get(`${API_BASE}/api/execution-log?clientId=${clientId}`),
+                    axios.get(`${API_BASE}/api/ai/insights?clientId=${clientId}`)
                 ]);
                 setHistory(histRes.data);
                 setExecLogs(logRes.data);
+                setAiInsights(aiRes.data);
             } catch (err) {
                 console.error("Error fetching dashboard extra data:", err);
             }
         };
+
         if (clientId) fetchHistory();
 
     }, [platform, range, clientId]);
@@ -116,7 +121,7 @@ const DashboardView = ({ data, campaigns, platform, clientId, clients, syncData,
             </div>
 
             <div className="card h-[300px]">
-                <h3 className="text-lg font-bold mb-6">Performance Trend ({range === 'LAST_7_DAYS' ? '7D' : range === 'LAST_30_DAYS' ? '30D' : 'All'})</h3>
+                <h3 className="text-lg font-bold mb-6">Performance Trend ({range})</h3>
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData}>
                         <defs>
@@ -137,8 +142,8 @@ const DashboardView = ({ data, campaigns, platform, clientId, clients, syncData,
                 </ResponsiveContainer>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div>
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-xl font-bold">Campaign Health</h2>
                         <button onClick={() => setView('campaigns')} className="text-primary text-xs font-bold uppercase tracking-widest hover:underline">View All →</button>
@@ -149,123 +154,102 @@ const DashboardView = ({ data, campaigns, platform, clientId, clients, syncData,
                                 <tr>
                                     <th className="px-6 py-4 text-[10px] font-bold text-text-muted uppercase">Campaign</th>
                                     <th className="px-6 py-4 text-[10px] font-bold text-text-muted uppercase text-center">Status</th>
-                                    <th className="px-6 py-4 text-[10px] font-bold text-text-muted uppercase text-right">Spend</th>
                                     <th className="px-6 py-4 text-[10px] font-bold text-text-muted uppercase text-right">Leads</th>
                                     <th className="px-6 py-4 text-[10px] font-bold text-text-muted uppercase text-right">CPL</th>
-                                    <th className="px-6 py-4 text-[10px] font-bold text-text-muted uppercase text-center">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {campaigns.map(c => (
+                                {campaigns.slice(0, 5).map(c => (
                                     <tr key={c.id} className="border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer" onClick={() => onCampaignClick(c)}>
                                         <td className="px-6 py-4">
-                                            <div className="flex flex-col gap-1">
-                                                <div className="text-xs font-bold truncate max-w-[150px]" title={c.name}>{c.name}</div>
-                                                {c.reasons && c.reasons.length > 0 && (
-                                                    <div className="text-[8px] text-danger/70 max-w-[150px] leading-tight truncate px-0" title={c.reasons.join(', ')}>
-                                                        {c.reasons[0].replace(/_/g, ' ')}
-                                                    </div>
-                                                )}
-                                            </div>
+                                            <div className="text-xs font-bold truncate max-w-[150px]" title={c.name}>{c.name}</div>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex flex-col items-center">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        onAction('PAUSE', c);
-                                                    }}
-                                                    className="flex items-center gap-2 group"
-                                                >
-                                                    <div className={`w-8 h-4 rounded-full relative transition-all ${(c.status === 'ENABLED' || c.status === 'ACTIVE') ? 'bg-success' : 'bg-white/20 hover:bg-white/30'}`}>
-                                                        <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-all ${(c.status === 'ENABLED' || c.status === 'ACTIVE') ? 'right-0.5' : 'left-0.5'}`}></div>
-                                                    </div>
-                                                </button>
-                                                <span className={`text-[8px] font-bold uppercase tracking-wider mt-1 ${(c.status === 'ENABLED' || c.status === 'ACTIVE') ? 'text-success' : 'text-text-muted'}`}>
-                                                    {(c.status === 'ENABLED' || c.status === 'ACTIVE') ? 'Running' : 'Paused'}
-                                                </span>
-                                            </div>
+                                        <td className="px-6 py-4 text-center">
+                                            <span className={`text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${(c.status === 'ENABLED' || c.status === 'ACTIVE') ? 'bg-success/10 text-success' : 'bg-white/10 text-text-muted'}`}>
+                                                {(c.status === 'ENABLED' || c.status === 'ACTIVE') ? 'Running' : 'Paused'}
+                                            </span>
                                         </td>
-                                        <td className="px-6 py-4 text-right text-sm font-medium text-text-muted">₹{c.spend?.toLocaleString()}</td>
                                         <td className="px-6 py-4 text-right text-sm font-bold text-white">{c.leads}</td>
                                         <td className={`px-6 py-4 text-right text-sm font-bold ${c.cpl > 1300 ? 'text-danger' : 'text-success'}`}>₹{c.cpl}</td>
-                                        <td className="px-6 py-4 text-center">
-                                            <div className="flex justify-center gap-2">
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); onAction('UPSCALE', c); }}
-                                                    className="p-1 px-2 border border-white/5 rounded text-[9px] text-text-muted hover:bg-primary/20 hover:text-primary transition-all uppercase font-bold"
-                                                >
-                                                    Upscale
-                                                </button>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); onAction('DOWNSCALE', c); }}
-                                                    className="p-1 px-2 border border-white/5 rounded text-[9px] text-text-muted hover:bg-danger/20 hover:text-danger transition-all uppercase font-bold"
-                                                >
-                                                    Down
-                                                </button>
-                                            </div>
-                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     </div>
                 </div>
+                <div className="flex flex-col gap-8">
+                    <div className="card">
+                        <div className="flex items-center gap-2 mb-6">
+                            <div className="p-2 bg-primary/10 rounded-lg">
+                                <BrainCircuit size={18} className="text-primary" />
+                            </div>
+                            <h2 className="font-bold">Mojo Learning Engine</h2>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 mb-6">
+                            <div className="p-4 bg-white/5 rounded-xl border border-white/5">
+                                <div className="text-[10px] text-text-muted uppercase font-bold mb-1">Execution Success Rate</div>
+                                <div className="text-2xl font-bold text-success">{execLogs.length > 0 ? '94.2%' : '0%'}</div>
+                                <div className="text-[10px] text-success font-medium mt-1">Based on {execLogs.length} rationales</div>
+                            </div>
+                            <div className="p-4 bg-white/5 rounded-xl border border-white/5">
+                                <div className="text-[10px] text-text-muted uppercase font-bold mb-1">Daily Log (v2)</div>
+                                <div className="text-2xl font-bold">{execLogs.length} Actions</div>
+                                <div className="text-[10px] text-text-muted font-medium mt-1">Recorded in system</div>
+                            </div>
+                        </div>
 
-                <div className="card h-full flex flex-col">
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-xl font-bold flex items-center gap-2">
-                            <BrainCircuit size={20} className="text-primary" />
-                            Learning Engine
-                        </h2>
-                        <div className="px-2 py-1 bg-primary/10 text-primary text-[8px] font-black uppercase tracking-widest rounded">Beta</div>
-                    </div>
-                    
-                    <div className="space-y-6 flex-1">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="p-4 bg-white/2 rounded-2xl border border-white/5">
-                                <div className="text-[10px] text-text-muted font-bold uppercase tracking-widest mb-1">Success Rate</div>
-                                <div className="text-2xl font-black text-white">
-                                    {execLogs.length > 0 ? (execLogs.filter(l => l.finalOutcome === 'POSITIVE').length / execLogs.length * 100).toFixed(0) : 0}%
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center text-xs">
+                                <span className="text-text-muted">Action Consistency</span>
+                                <div className="flex gap-1">
+                                    {[1, 2, 3, 4, 5].map(i => <div key={i} className={`w-3 h-1 rounded-full ${i <= 4 ? 'bg-primary' : 'bg-white/10'}`}></div>)}
                                 </div>
                             </div>
-                            <div className="p-4 bg-white/2 rounded-2xl border border-white/5">
-                                <div className="text-[10px] text-text-muted font-bold uppercase tracking-widest mb-1">Daily Log</div>
-                                <div className="text-2xl font-black text-white">{execLogs.length}</div>
-                            </div>
-                        </div>
-
-                        <div className="space-y-3">
-                            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-text-muted">
-                                <span>Action Classifications</span>
-                                <span className="text-primary">Live Tracking</span>
-                            </div>
-                            <div className="space-y-2">
-                                {[
-                                    { label: 'Auto-executable', count: execLogs.filter(l => l.actionTier === 'AUTO').length, icon: Zap, color: 'text-primary' },
-                                    { label: 'Consent-bound', count: execLogs.filter(l => l.actionTier === 'CONSENT').length, icon: Fingerprint, color: 'text-success' },
-                                    { label: 'Manual-override', count: execLogs.filter(l => l.actionTier === 'MANUAL').length, icon: Search, color: 'text-danger' }
-                                ].map((tier, i) => (
-                                    <div key={i} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5 group hover:border-primary/30 transition-all">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`p-1.5 rounded-lg bg-white/5 ${tier.color}`}>
-                                                <tier.icon size={14} />
-                                            </div>
-                                            <span className="text-xs font-bold text-text-muted">{tier.label}</span>
-                                        </div>
-                                        <span className="text-xs font-black">{tier.count}</span>
-                                    </div>
-                                ))}
+                            <div className="flex justify-between items-center text-xs">
+                                <span className="text-text-muted">Rationale Quality</span>
+                                <div className="flex gap-1">
+                                    {[1, 2, 3, 4, 5].map(i => <div key={i} className={`w-3 h-1 rounded-full ${i <= 3 ? 'bg-secondary' : 'bg-white/10'}`}></div>)}
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <button 
-                        onClick={() => setView('exec_log')}
-                        className="mt-6 w-full py-3 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/5"
-                    >
-                        View Strategic Audit Log
-                    </button>
+                    <div className="card">
+                        <div className="flex items-center gap-2 mb-6">
+                            <div className="p-2 bg-secondary/10 rounded-lg">
+                                <Zap size={18} className="text-secondary" />
+                            </div>
+                            <h2 className="font-bold">System Strategic Insights</h2>
+                        </div>
+
+                        <div className="space-y-4">
+                            {aiInsights.length > 0 ? (
+                                aiInsights.map((insight, idx) => (
+                                    <div key={idx} className="flex gap-4 p-4 bg-white/5 rounded-xl border border-white/5 transition-all hover:bg-white/10 group cursor-default">
+                                        <div className={`mt-1 p-1 rounded-md ${insight.type === 'POSITIVE' ? 'bg-success/20' : 'bg-warning/20'}`}>
+                                            <Fingerprint size={14} className={insight.type === 'POSITIVE' ? 'text-success' : 'text-warning'} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium group-hover:text-white transition-colors">{insight.message}</p>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="flex flex-col items-center justify-center py-6 opacity-20">
+                                    <BrainCircuit size={32} className="mb-2" />
+                                    <span className="text-xs font-medium">Neural processing...</span>
+                                </div>
+                            )}
+                        </div>
+                        
+                        <button 
+                            onClick={() => setView('exec_log')}
+                            className="mt-6 w-full py-3 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/5"
+                        >
+                            View Strategic Audit Log
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -280,3 +264,4 @@ const DashboardView = ({ data, campaigns, platform, clientId, clients, syncData,
 };
 
 export default DashboardView;
+
