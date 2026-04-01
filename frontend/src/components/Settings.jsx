@@ -270,12 +270,22 @@ const Settings = () => {
                                     />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-text-muted uppercase">Customer ID</label>
+                                    <label className="text-xs font-bold text-text-muted uppercase">Customer ID (Client)</label>
                                     <input
                                         type="text"
                                         value={selectedClient.google?.customerId || ''}
                                         onChange={(e) => updateField('google', 'customerId', e.target.value)}
                                         placeholder="123-456-7890"
+                                        className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm focus:border-google outline-none text-white"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-text-muted uppercase">Login Customer ID (Manager)</label>
+                                    <input
+                                        type="text"
+                                        value={selectedClient.google?.loginCustomerId || ''}
+                                        onChange={(e) => updateField('google', 'loginCustomerId', e.target.value)}
+                                        placeholder="766-897-0885"
                                         className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm focus:border-google outline-none text-white"
                                     />
                                 </div>

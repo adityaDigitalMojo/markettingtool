@@ -248,9 +248,9 @@ app.get('/api/dashboard', async (req, res) => {
     res.json({ error: 'No data source available' });
 });
 
-app.get('/api/ai/insights', async (req, res) => {
-    const { platform, range } = req.query;
-    const clientName = req.clientData.name || "Client";
+app.get('/api/ai/insights', withPlatformService, async (req, res) => {
+    const { platform } = req.query;
+    const clientName = (req.clientData && req.clientData.name) || "Client";
     
     // Dynamic insights based on platform
     const insights = platform === 'Google' ? [

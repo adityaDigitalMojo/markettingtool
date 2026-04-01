@@ -42,6 +42,7 @@ class GoogleAdsService {
         }
 
         try {
+            console.log(`[GoogleAdsService] Initializing for Customer: ${this.customer_id}, Login: ${login_customer_id}`);
             this.client = new GoogleAdsApi({
                 client_id: credentials.clientId,
                 client_secret: credentials.clientSecret,
